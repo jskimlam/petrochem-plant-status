@@ -222,7 +222,7 @@ some technical issues that occurred earlier in January."></textarea>
 <script>
     // ★ Apps Script 웹앱 배포 URL (doGet + doPost 모두 이 URL)
     const GAS_URL   = "https://script.google.com/macros/s/AKfycbx87rDTcam2G-Qg2dcmCM5I1hQ56RG8tIboojIu1S8K1gMT6vw6K1dG8oeaUGb3UesnnA/exec";
-    const ADMIN_PW  = "77011";
+    const ADMIN_PW  = "jskim77011";
 
     let db = [], parsed = null, authed = false;
 
@@ -254,14 +254,19 @@ some technical issues that occurred earlier in January."></textarea>
     function updateComp() {
         const p = document.getElementById('pSelect').value;
         const cs = document.getElementById('cSelect');
-        cs.innerHTML = '<option value="">업체(Company) 선택</option>';
-        document.getElementById('displayArea').innerHTML =
-            '<div style="text-align:center;padding:55px;color:#ccc;font-size:.9rem">업체를 선택하세요.</div>';
+        cs.innerHTML = '<option value="">전체 업체 보기</option>';
         document.getElementById('rc').style.display = 'none';
-        if (!p) { cs.disabled = true; return; }
+        if (!p) {
+            cs.disabled = true;
+            document.getElementById('displayArea').innerHTML =
+                '<div style="text-align:center;padding:55px;color:#ccc;font-size:.9rem">품목을 선택하세요.</div>';
+            return;
+        }
         const comps = [...new Set(db.filter(x => x[3] === p).map(x => x[1]))].sort();
         comps.forEach(c => cs.innerHTML += `<option value="${c}">${c}</option>`);
         cs.disabled = false;
+        // 품목 선택만 해도 전체 카드 바로 표시
+        renderCards(p, '');
     }
 
     function sc(s) {
@@ -273,8 +278,14 @@ some technical issues that occurred earlier in January."></textarea>
     function render() {
         const p = document.getElementById('pSelect').value;
         const c = document.getElementById('cSelect').value;
-        if (!c) return;
-        const rows = db.filter(x => x[3] === p && x[1] === c).sort((a, b) => new Date(b[0]) - new Date(a[0]));
+        renderCards(p, c);
+    }
+
+    function renderCards(p, c) {
+        if (!p) return;
+        // c가 비어있으면 품목 전체, 있으면 해당 업체만
+        const rows = db.filter(x => x[3] === p && (!c || x[1] === c))
+                       .sort((a, b) => new Date(b[0]) - new Date(a[0]));
         const area = document.getElementById('displayArea');
         const rcEl = document.getElementById('rc');
 
@@ -283,7 +294,9 @@ some technical issues that occurred earlier in January."></textarea>
             rcEl.style.display = 'none'; return;
         }
         rcEl.style.display = 'block';
-        rcEl.innerHTML = `총 <span>${rows.length}건</span>의 이력`;
+        rcEl.innerHTML = c
+            ? `<span>${c}</span> — 총 <span>${rows.length}건</span>`
+            : `<span>${p}</span> 전체 — 총 <span>${rows.length}건</span> (기사 최신순)`;
 
         area.innerHTML = rows.map(item => {
             const cls  = sc(item[5] || '');
@@ -407,6 +420,21 @@ some technical issues that occurred earlier in January."></textarea>
 
     async function doSave() {
         if (!parsed) { toast('먼저 파싱하세요.','er'); return; }
+
+        // ── 중복 체크: 업체명 + 기사발행일 조합이 이미 있으면 차단 ──
+        const isDup = db.some(row => {
+            const rowCompany = (row[1] || '').trim().toLowerCase();
+            const rowDate    = row[0] ? String(row[0]).trim() : '';
+            const chkCompany = parsed.company.trim().toLowerCase();
+            const chkDate    = parsed.articleDate;
+            // 업체명 일치 + 날짜 문자열 포함 여부
+            return rowCompany === chkCompany && rowDate.includes(chkDate.split(' ')[0]);
+        });
+        if (isDup) {
+            toast('⚠️ 이미 저장된 기사입니다 — ' + parsed.company + ' / ' + parsed.articleDate, 'inf', 5000);
+            return;
+        }
+
         const btn = document.getElementById('btn-save');
         btn.textContent='저장 중...'; btn.disabled=true;
         try {
@@ -434,7 +462,18 @@ some technical issues that occurred earlier in January."></textarea>
             if (r.success) {
                 toast('✅ 저장 완료! '+parsed.company,'ok',4000);
                 closeModal();
-                await init(); // 저장 후 리스트 자동 새로고침
+                const curP = document.getElementById('pSelect').value;
+                const curC = document.getElementById('cSelect').value;
+                await init();
+                // 저장 전 선택 상태 복원
+                if (curP) {
+                    document.getElementById('pSelect').value = curP;
+                    updateComp();
+                    if (curC) {
+                        document.getElementById('cSelect').value = curC;
+                        renderCards(curP, curC);
+                    }
+                }
             } else toast('저장 실패: '+(r.message||'오류'),'er');
         } catch(e) {
             toast('❌ 오류: '+e.message,'er');
