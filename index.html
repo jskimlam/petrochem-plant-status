@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>석유화학 플랜트 아카이브 대시보드</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f0f2f5; font-family: 'Pretendard', sans-serif; padding-top: 30px; }
+        .dashboard-container { max-width: 1100px; margin: auto; background: white; padding: 40px; border-radius: 20px; box-shadow: 0 15px 35px rgba(0,0,0,0.1); }
+        .header-title { color: #1a73e8; font-weight: 800; border-bottom: 3px solid #1a73e8; display: inline-block; padding-bottom: 5px; margin-bottom: 30px; }
+        .filter-card { background: #f8f9fa; border: none; border-radius: 12px; margin-bottom: 25px; }
+        .status-badge { font-size: 0.9rem; padding: 8px 15px; border-radius: 50px; }
+        .status-shutdown { background-color: #dc3545; color: white; }
+        .status-runcut { background-color: #ffc107; color: #000; }
+        .img-preview { width: 100%; max-height: 200px; object-fit: cover; border-radius: 10px; cursor: pointer; transition: 0.3s; }
+        .img-preview:hover { transform: scale(1.02); }
+        .info-label { font-size: 0.85rem; color: #6c757d; margin-bottom: 2px; }
+        .info-value { font-weight: 600; font-size: 1.1rem; }
+    </style>
+</head>
+<body>
+
+<div class="container dashboard-container">
+    <h2 class="header-title">🏭 PLANT ARCHIVE</h2>
+    
+    <div class="card filter-card">
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">1. 품목 선택</label>
+                    <select id="productSelect" class="form-select form-select-lg" onchange="updateCompanyList()">
+                        <option value="">품목을 선택하세요</option>
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">2. 업체 선택</label>
+                    <select id="companySelect" class="form-select form-select-lg" onchange="filterDisplay()" disabled>
+                        <option value="">업체를 선택하세요</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="resultArea" class="row g-4">
+        <div class="col-12 text-center py-5 text-muted">
+            <p>위 필터를 선택하면 상세 정보가 나타납니다.</p>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ⚠️ 여기에 구글 앱스 스크립트 '웹 앱 URL'을 붙여넣으세요!
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbyz2KGLsSwfp4g-8qR0FqoAnfgl4x0INwj_WTwNA7uFelAudk81KdXKFlwl5J_fVo9VZw/exec"; 
+    let allData = [];
+
+    // 데이터 가져오기
+    async function init() {
+        try {
+            const response = await fetch(GAS_URL);
+            const data = await response.json();
+            allData = data.slice(1); // 헤더(0번줄) 제외
+
+            // 품목 드롭다운 생성 (중복 제거)
+            const products = [...new Set(allData.map(row => row[3]))].filter(p => p); //
+            const pSelect = document.getElementById('productSelect');
+            products.forEach(p => pSelect.innerHTML += `<option value="${p}">${p}</option>`);
+        } catch (e) {
+            document.getElementById('resultArea').innerHTML = `<div class="alert alert-danger">데이터를 불러오지 못했습니다. GAS URL과 권한 설정을 확인하세요.</div>`;
+        }
+    }
+
+    // 품목 선택 시 업체 목록 업데이트
+    function updateCompanyList() {
+        const selectedProduct = document.getElementById('productSelect').value;
+        const cSelect = document.getElementById('companySelect');
+        
+        cSelect.innerHTML = '<option value="">업체를 선택하세요</option>';
+        if (!selectedProduct) {
+            cSelect.disabled = true;
+            return;
+        }
+
+        const companies = [...new Set(allData.filter(row => row[3] === selectedProduct).map(row => row[1]))]; //
+        companies.forEach(c => cSelect.innerHTML += `<option value="${c}">${c}</option>`);
+        cSelect.disabled = false;
+        filterDisplay();
+    }
+
+    // 화면에 정보 렌더링
+    function filterDisplay() {
+        const p = document.getElementById('productSelect').value;
+        const c = document.getElementById('companySelect').value;
+        const resultArea = document.getElementById('resultArea');
+
+        if (!p || !c) {
+            resultArea.innerHTML = '<div class="col-12 text-center py-5 text-muted">품목과 업체를 모두 선택해주세요.</div>';
+            return;
+        }
+
+        const filtered = allData.filter(row => row[3] === p && row[1] === c); //
+        
+        resultArea.innerHTML = filtered.map(row => {
+            const statusClass = row[4] === "Shutdown" ? "status-shutdown" : "status-runcut"; //
+            return `
+                <div class="col-md-6 col-lg-4">
+                    <div class="card h-100 shadow-sm border-0">
+                        <img src="${row[7]}" class="card-img-top img-preview" onclick="window.open('${row[7]}')" onerror="this.src='https://via.placeholder.com/400x200?text=No+Image'">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start mb-3">
+                                <span class="badge ${statusClass} status-badge">${row[4]}</span>
+                                <small class="text-muted">${new Date(row[0]).toLocaleDateString()}</small>
+                            </div>
+                            <h5 class="card-title fw-bold mb-3">${row[1]} <small class="text-muted">(${row[2]})</small></h5>
+                            
+                            <div class="mb-2">
+                                <div class="info-label">이벤트 기간</div>
+                                <div class="info-value">${row[5]}</div>
+                            </div>
+                            <div class="mb-0">
+                                <div class="info-label">상세 사유</div>
+                                <div class="info-value" style="font-size: 0.95rem;">${row[6]}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    init();
+</script>
+
+</body>
+</html>
