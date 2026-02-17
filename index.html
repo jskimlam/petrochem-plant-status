@@ -137,7 +137,26 @@
             <h3>📋 ICIS Plant Status 입력</h3>
             <span class="ver">Apps Script</span>
         </div>
-        <div class="mbody">
+
+        <!-- 비밀번호 인증 화면 -->
+        <div id="auth-screen" style="padding:40px 28px;text-align:center;">
+            <div style="font-size:2rem;margin-bottom:12px;">🔒</div>
+            <div style="font-size:.95rem;font-weight:900;color:var(--primary);margin-bottom:6px;">관리자 인증</div>
+            <div style="font-size:.75rem;color:#aaa;margin-bottom:22px;">입력 권한이 있는 관리자만 사용할 수 있습니다.</div>
+            <input type="password" id="pw-input"
+                placeholder="비밀번호 입력"
+                style="width:100%;padding:13px 16px;border:2px solid #e2e8f0;border-radius:10px;font-size:.9rem;text-align:center;box-sizing:border-box;transition:border-color .2s;outline:none;"
+                onkeydown="if(event.key==='Enter') verifyPw()"
+                onfocus="this.style.borderColor='var(--accent)'"
+                onblur="this.style.borderColor='#e2e8f0'">
+            <div id="pw-err" style="color:var(--red);font-size:.75rem;margin-top:8px;display:none;">❌ 비밀번호가 맞지 않습니다.</div>
+            <button onclick="verifyPw()"
+                style="width:100%;margin-top:14px;padding:13px;background:var(--primary);color:white;border:none;border-radius:10px;font-weight:900;font-size:.88rem;cursor:pointer;">
+                확인
+            </button>
+        </div>
+
+        <div class="mbody" id="input-screen" style="display:none;">
             <span class="mlabel">ICIS 기사 텍스트 붙여넣기</span>
             <textarea id="icis-input" placeholder="ICIS plant status 기사 전체를 여기에 붙여넣으세요.
 
@@ -161,7 +180,7 @@ some technical issues that occurred earlier in January."></textarea>
             </div>
         </div>
         <div class="mfoot">
-            <button class="btn-m-parse" onclick="doParse()">🔍 파싱</button>
+            <button class="btn-m-parse" id="btn-parse" onclick="doParse()">🔍 파싱</button>
             <button class="btn-m-save" id="btn-save" onclick="doSave()">💾 구글시트 저장</button>
             <button class="btn-m-close" onclick="closeModal()">닫기</button>
         </div>
@@ -202,9 +221,10 @@ some technical issues that occurred earlier in January."></textarea>
 
 <script>
     // ★ Apps Script 웹앱 배포 URL (doGet + doPost 모두 이 URL)
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbx87rDTcam2G-Qg2dcmCM5I1hQ56RG8tIboojIu1S8K1gMT6vw6K1dG8oeaUGb3UesnnA/exec";
+    const GAS_URL   = "https://script.google.com/macros/s/AKfycbx87rDTcam2G-Qg2dcmCM5I1hQ56RG8tIboojIu1S8K1gMT6vw6K1dG8oeaUGb3UesnnA/exec";
+    const ADMIN_PW  = "770111";
 
-    let db = [], parsed = null;
+    let db = [], parsed = null, authed = false;
 
     // ── 조회 ──
     async function init() {
@@ -292,7 +312,42 @@ some technical issues that occurred earlier in January."></textarea>
     }
 
     // ── ICIS 입력 모달 ──
-    function openModal()  { parsed=null; document.getElementById('icis-input').value=''; document.getElementById('pv-wrap').style.display='none'; document.getElementById('btn-save').style.display='none'; document.getElementById('overlay').classList.add('open'); }
+    function openModal() {
+        parsed = null;
+        document.getElementById('icis-input').value = '';
+        document.getElementById('pv-wrap').style.display = 'none';
+        document.getElementById('btn-save').style.display = 'none';
+        // 인증 상태 초기화
+        if (!authed) {
+            document.getElementById('auth-screen').style.display = 'block';
+            document.getElementById('input-screen').style.display = 'none';
+            document.getElementById('pw-input').value = '';
+            document.getElementById('pw-err').style.display = 'none';
+            document.getElementById('btn-parse').style.display = 'none';
+        } else {
+            document.getElementById('auth-screen').style.display = 'none';
+            document.getElementById('input-screen').style.display = 'block';
+            document.getElementById('btn-parse').style.display = 'block';
+        }
+        document.getElementById('overlay').classList.add('open');
+        if (!authed) setTimeout(() => document.getElementById('pw-input').focus(), 100);
+    }
+
+    function verifyPw() {
+        const val = document.getElementById('pw-input').value;
+        if (val === ADMIN_PW) {
+            authed = true;
+            document.getElementById('auth-screen').style.display = 'none';
+            document.getElementById('input-screen').style.display = 'block';
+            document.getElementById('btn-parse').style.display = 'block';
+            setTimeout(() => document.getElementById('icis-input').focus(), 100);
+        } else {
+            document.getElementById('pw-err').style.display = 'block';
+            document.getElementById('pw-input').value = '';
+            document.getElementById('pw-input').focus();
+        }
+    }
+
     function closeModal() { document.getElementById('overlay').classList.remove('open'); }
 
     // 줄끝까지만 추출 — 다음 줄 딸려오는 문제 완전 차단
