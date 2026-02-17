@@ -2,45 +2,40 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>PLANT ARCHIVE 통합 대시보드</title>
+    <title>PLANT ARCHIVE 상세 대시보드</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        body { background-color: #f8f9fa; padding: 40px; font-family: 'Segoe UI', sans-serif; }
-        .dashboard { max-width: 1200px; margin: auto; background: white; padding: 35px; border-radius: 15px; box-shadow: 0 5px 25px rgba(0,0,0,0.07); }
-        .table th { background-color: #343a40; color: white; text-align: center; font-size: 0.9rem; }
-        .table td { vertical-align: middle; border-bottom: 1px solid #dee2e6; }
-        .badge-status { padding: 6px 12px; border-radius: 4px; font-weight: bold; }
-        .Shutdown { background-color: #ffe3e3; color: #e03131; }
-        .Run-Cut { background-color: #fff4e6; color: #fd7e14; }
+        body { background-color: #f0f2f5; padding: 40px 20px; font-family: 'Pretendard', sans-serif; }
+        .dashboard-container { max-width: 800px; margin: auto; }
+        .info-card { background: white; border-radius: 15px; padding: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); margin-top: 25px; border: none; }
+        .row-item { display: flex; border-bottom: 1px solid #f1f3f5; padding: 12px 0; }
+        .row-item:last-child { border-bottom: none; }
+        .label { width: 140px; color: #6c757d; font-weight: 600; font-size: 0.9rem; flex-shrink: 0; }
+        .value { color: #2d3436; font-weight: 500; font-size: 1.05rem; word-break: break-all; }
+        .status-badge { display: inline-block; padding: 5px 15px; border-radius: 50px; font-weight: 700; font-size: 0.85rem; margin-bottom: 15px; }
+        .status-Shutdown { background-color: #ffe3e3; color: #e03131; }
+        .status-Run-Cut { background-color: #fff4e6; color: #fd7e14; }
+        .comment-section { background: #f8f9fa; border-radius: 10px; padding: 15px; margin-top: 10px; border-left: 4px solid #dee2e6; }
     </style>
 </head>
 <body>
-<div class="dashboard">
-    <h3 class="text-center mb-4 fw-bold">🏭 석유화학 플랜트 아카이브 (STATUS)</h3>
+
+<div class="dashboard-container">
+    <h3 class="text-center fw-bold text-dark mb-4">📑 PLANT ARCHIVE STATUS</h3>
     
-    <div class="row g-3 mb-5">
-        <div class="col-md-6">
-            <label class="form-label fw-bold">품목(Product) 필터</label>
-            <select id="pSelect" class="form-select form-select-lg" onchange="updateComp()"><option value="">품목을 선택하세요</option></select>
-        </div>
-        <div class="col-md-6">
-            <label class="form-label fw-bold">업체(Company) 필터</label>
-            <select id="cSelect" class="form-select form-select-lg" onchange="render()" disabled><option value="">업체를 선택하세요</option></select>
+    <div class="card p-3 border-0 shadow-sm mb-4">
+        <div class="row g-2">
+            <div class="col-md-6">
+                <select id="pSelect" class="form-select" onchange="updateComp()"><option value="">품목(Product) 선택</option></select>
+            </div>
+            <div class="col-md-6">
+                <select id="cSelect" class="form-select" onchange="render()" disabled><option value="">업체(Company) 선택</option></select>
+            </div>
         </div>
     </div>
 
-    <div class="table-responsive">
-        <table class="table table-hover">
-            <thead>
-                <tr>
-                    <th>입력일</th><th>업체명</th><th>지역</th><th>품목</th><th>케파(Capacity)</th>
-                    <th>상태(싱테)</th><th>이벤트 기간</th><th>사유</th><th>코멘트(Comments)</th>
-                </tr>
-            </thead>
-            <tbody id="resultBody">
-                <tr><td colspan="9" class="text-center py-5 text-muted">위 필터를 선택하면 시트 데이터가 나타납니다.</td></tr>
-            </tbody>
-        </table>
+    <div id="displayArea">
+        <p class="text-center text-muted py-5">품목과 업체를 선택하면 상세 정보가 세로로 나타납니다.</p>
     </div>
 </div>
 
@@ -59,34 +54,43 @@
     function updateComp() {
         const p = document.getElementById('pSelect').value;
         const cs = document.getElementById('cSelect');
-        cs.innerHTML = '<option value="">업체를 선택하세요</option>';
+        cs.innerHTML = '<option value="">업체(Company) 선택</option>';
         if(!p) { cs.disabled = true; return; }
         const comps = [...new Set(db.filter(x => x[3] === p).map(x => x[1]))];
         comps.forEach(c => cs.innerHTML += `<option value="${c}">${c}</option>`);
         cs.disabled = false;
-        document.getElementById('resultBody').innerHTML = '<tr><td colspan="9" class="text-center py-3">업체를 선택해주세요.</td></tr>';
+        document.getElementById('displayArea').innerHTML = "";
     }
 
     function render() {
         const p = document.getElementById('pSelect').value;
         const c = document.getElementById('cSelect').value;
-        const body = document.getElementById('resultBody');
-        const list = db.filter(x => x[3] === p && x[1] === c).reverse(); // 최신 데이터가 위로
+        const area = document.getElementById('displayArea');
+        const rows = db.filter(x => x[3] === p && x[1] === c).reverse(); // 최신 데이터 우선
 
-        if(list.length > 0) {
-            body.innerHTML = list.map(item => `
-                <tr>
-                    <td class="small text-center">${new Date(item[0]).toLocaleDateString()}</td>
-                    <td class="fw-bold">${item[1]}</td>
-                    <td class="small">${item[2]}</td>
-                    <td class="text-center">${item[3]}</td>
-                    <td class="text-primary fw-bold text-center">${item[4]}</td>
-                    <td class="text-center"><span class="badge-status ${item[5].replace(" ", "-")}">${item[5]}</span></td>
-                    <td class="small">${item[6]}</td>
-                    <td>${item[7]}</td>
-                    <td class="text-muted" style="font-size: 0.85rem;">${item[8]}</td>
-                </tr>
-            `).join('');
+        if(rows.length > 0) {
+            area.innerHTML = rows.map(item => {
+                const sType = item[5].replace(" ", "-");
+                return `
+                    <div class="info-card">
+                        <span class="status-badge status-${sType}">${item[5]}</span>
+                        <div class="row-item"><div class="label">날짜(입력일)</div><div class="value">${new Date(item[0]).toLocaleString()}</div></div>
+                        <div class="row-item"><div class="label">업체명</div><div class="value"><strong>${item[1]}</strong></div></div>
+                        <div class="row-item"><div class="label">지역</div><div class="value">${item[2]}</div></div>
+                        <div class="row-item"><div class="label">품목</div><div class="value">${item[3]}</div></div>
+                        <div class="row-item"><div class="label">케파(Capacity)</div><div class="value text-primary fw-bold">${item[4]}</div></div>
+                        <div class="row-item"><div class="label">상태(싱테)</div><div class="value">${item[5]}</div></div>
+                        <div class="row-item"><div class="label">이벤트 기간</div><div class="value">${item[6]}</div></div>
+                        <div class="row-item"><div class="label">사유(Reason)</div><div class="value">${item[7]}</div></div>
+                        <div class="row-item" style="border-bottom:none;">
+                            <div class="label">코멘트</div>
+                            <div class="value w-100">
+                                <div class="comment-section">${item[8]}</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
         }
     }
     init();
