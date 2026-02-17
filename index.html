@@ -222,7 +222,7 @@ some technical issues that occurred earlier in January."></textarea>
 <script>
     // ★ Apps Script 웹앱 배포 URL (doGet + doPost 모두 이 URL)
     const GAS_URL   = "https://script.google.com/macros/s/AKfycbx87rDTcam2G-Qg2dcmCM5I1hQ56RG8tIboojIu1S8K1gMT6vw6K1dG8oeaUGb3UesnnA/exec";
-    const ADMIN_PW  = "770111";
+    const ADMIN_PW  = "77011";
 
     let db = [], parsed = null, authed = false;
 
@@ -274,7 +274,7 @@ some technical issues that occurred earlier in January."></textarea>
         const p = document.getElementById('pSelect').value;
         const c = document.getElementById('cSelect').value;
         if (!c) return;
-        const rows = db.filter(x => x[3] === p && x[1] === c).reverse();
+        const rows = db.filter(x => x[3] === p && x[1] === c).sort((a, b) => new Date(b[0]) - new Date(a[0]));
         const area = document.getElementById('displayArea');
         const rcEl = document.getElementById('rc');
 
@@ -380,7 +380,11 @@ some technical issues that occurred earlier in January."></textarea>
         const capaOk = capa !== '-';
         const allOk  = [company,location,product,capa].every(v=>v!=='-');
 
-        parsed = {company,location,product,capa,status,period,reason,comment,raw};
+        // 기사 발행 날짜 추출: "16-Feb-26 11:10" 또는 "14-Feb-26 00:48" 형식
+        const dateMatch = raw.match(/(\d{1,2}-(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-\d{2})\s+(\d{2}:\d{2})/i);
+        const articleDate = dateMatch ? `${dateMatch[1]} ${dateMatch[2]}` : '-';
+
+        parsed = {company,location,product,capa,status,period,reason,comment,articleDate,raw};
 
         document.getElementById('pg').innerHTML = `
             <div class="pf"><div class="pl">업체명</div><div class="pv hi">${company}</div></div>
@@ -390,6 +394,7 @@ some technical issues that occurred earlier in January."></textarea>
             <div class="pf"><div class="pl">상태</div><div class="pv">${pillHtml(status)}</div></div>
             <div class="pf"><div class="pl">이벤트 기간</div><div class="pv">${period}</div></div>
             <div class="pf"><div class="pl">사유</div><div class="pv">${reason}</div></div>
+            <div class="pf"><div class="pl">기사 발행일 📰</div><div class="pv hi">${articleDate}</div></div>
             <div class="pf full"><div class="pl">코멘트</div><div class="pv-cmt">${comment!=='-'?comment:'<span style="color:#ccc">없음</span>'}</div></div>`;
 
         const b = document.getElementById('pbadge');
@@ -411,7 +416,7 @@ some technical issues that occurred earlier in January."></textarea>
                 body: JSON.stringify({
                     action:'saveIcis',
                     data:{
-                        date:     new Date().toISOString(),
+                        date:     parsed.articleDate,  // A열 = 기사 발행일
                         company:  parsed.company,
                         location: parsed.location,
                         product:  parsed.product,
@@ -420,7 +425,8 @@ some technical issues that occurred earlier in January."></textarea>
                         period:   parsed.period,
                         reason:   parsed.reason,
                         comment:  parsed.comment,
-                        raw:      parsed.raw
+                        raw:      parsed.raw,
+                        articleDate: parsed.articleDate
                     }
                 })
             });
@@ -466,7 +472,7 @@ function doPost(e) {
     if (body.action === 'saveIcis') {
       var d = body.data;
       SpreadsheetApp.openById(SPREADSHEET_ID).getActiveSheet().appendRow([
-        new Date(d.date), d.company, d.location, d.product,
+        new Date(d.date), d.company, d.location, d.product,  // A열 = 기사 발행일
         d.capa, d.status, d.period, d.reason, d.comment, '', d.raw
       ]);
       return ContentService.createTextOutput(JSON.stringify({success:true,message:d.company+' 저장 완료'})).setMimeType(ContentService.MimeType.JSON);
