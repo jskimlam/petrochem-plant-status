@@ -2,89 +2,83 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>플랜트 정보 아카이브 현황</title>
+    <title>플랜트 정보 대시보드</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        body { background-color: #f4f7f9; padding: 50px 20px; font-family: sans-serif; }
-        .dashboard { max-width: 800px; margin: auto; background: white; padding: 35px; border-radius: 12px; box-shadow: 0 8px 20px rgba(0,0,0,0.08); }
-        .status-display { margin-top: 30px; padding: 25px; border-radius: 10px; border-left: 10px solid #cbd5e0; transition: 0.3s; }
-        .status-Shutdown { border-left-color: #e53e3e; background-color: #fff5f5; }
-        .status-Run-Cut { border-left-color: #ecc94b; background-color: #fffff0; }
-        .data-label { font-size: 0.8rem; text-transform: uppercase; color: #718096; letter-spacing: 0.05em; margin-bottom: 4px; }
-        .data-value { font-size: 1.15rem; font-weight: 700; color: #2d3748; margin-bottom: 15px; }
-        .comment-box { margin-top: 15px; padding: 15px; background: rgba(0,0,0,0.03); border-radius: 6px; font-style: italic; color: #4a5568; }
+        body { background-color: #f8f9fa; padding: 30px; }
+        .container { max-width: 1000px; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+        .info-table th { width: 30%; background-color: #f1f3f5; }
+        .status-badge { padding: 5px 12px; border-radius: 20px; font-weight: bold; }
+        .Shutdown { background-color: #ffdee2; color: #d63031; }
+        .Run-Cut { background-color: #fff4e6; color: #fd7e14; }
     </style>
 </head>
 <body>
-
-<div class="dashboard">
-    <h2 class="text-center mb-5 fw-bold text-dark">🔍 실시간 플랜트 정보 검색</h2>
+<div class="container">
+    <h3 class="text-center mb-4">📑 PLANT ARCHIVE STATUS</h3>
     
-    <div class="row g-3">
+    <div class="row g-3 mb-4">
         <div class="col-md-6">
-            <label class="form-label fw-semibold">품목 (Product)</label>
-            <select id="pSelect" class="form-select" onchange="loadCompanies()"><option value="">품목 선택</option></select>
+            <label class="form-label fw-bold">1. 품목 선택</label>
+            <select id="pSelect" class="form-select" onchange="updateComp()"><option value="">품목 선택</option></select>
         </div>
         <div class="col-md-6">
-            <label class="form-label fw-semibold">업체 (Company)</label>
-            <select id="cSelect" class="form-select" onchange="renderInfo()" disabled><option value="">업체 선택</option></select>
+            <label class="form-label fw-bold">2. 업체 선택</label>
+            <select id="cSelect" class="form-select" onchange="render()" disabled><option value="">업체 선택</option></select>
         </div>
     </div>
 
-    <div id="infoArea"></div>
+    <div id="resultArea"></div>
 </div>
 
 <script>
-    const URL = "https://script.google.com/macros/s/AKfycbzKpzR8wEzTUwidmthvlXDnIBZxV2JScwU9NvYvYrncwsX62uC3K70sec3K6uvZPx2bpQ/exec";
-    let db = [];
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbxsSY65cTM0BqHC8InuuwFyvb6OsCNtzHBSNo-zvWqi0pD6XxI_qG-ZPi8HXwg2GQrEIw/exec";
+    let dataList = [];
 
-    async function start() {
-        const r = await fetch(URL);
-        const d = await r.json();
-        db = d.slice(1); // 헤더 제외
-        const prods = [...new Set(db.map(x => x[3]))].filter(x => x && x !== "-");
+    async function init() {
+        const res = await fetch(GAS_URL);
+        const data = await res.json();
+        dataList = data.slice(1); // 헤더 제외
+        const prods = [...new Set(dataList.map(x => x[3]))].filter(x => x && x !== "-");
         prods.forEach(p => document.getElementById('pSelect').innerHTML += `<option value="${p}">${p}</option>`);
     }
 
-    function loadCompanies() {
+    function updateComp() {
         const p = document.getElementById('pSelect').value;
-        const cS = document.getElementById('cSelect');
-        cS.innerHTML = '<option value="">업체 선택</option>';
-        if(!p) { cS.disabled = true; return; }
-        const comps = [...new Set(db.filter(x => x[3] === p).map(x => x[1]))];
-        comps.forEach(c => cS.innerHTML += `<option value="${c}">${c}</option>`);
-        cS.disabled = false;
-        document.getElementById('infoArea').innerHTML = "";
+        const cs = document.getElementById('cSelect');
+        cs.innerHTML = '<option value="">업체 선택</option>';
+        if(!p) { cs.disabled = true; return; }
+        const comps = [...new Set(dataList.filter(x => x[3] === p).map(x => x[1]))];
+        comps.forEach(c => cs.innerHTML += `<option value="${c}">${c}</option>`);
+        cs.disabled = false;
+        document.getElementById('resultArea').innerHTML = "";
     }
 
-    function renderInfo() {
+    function render() {
         const p = document.getElementById('pSelect').value;
         const c = document.getElementById('cSelect').value;
-        const area = document.getElementById('infoArea');
-        const item = db.reverse().find(x => x[3] === p && x[1] === c); // 최신 데이터
+        const area = document.getElementById('resultArea');
+        const item = [...dataList].reverse().find(x => x[3] === p && x[1] === c); // 최신 데이터
 
         if(item) {
-            const sClass = item[5].replace(" ", "-"); 
             area.innerHTML = `
-                <div class="status-display status-${sClass}">
-                    <div class="row">
-                        <div class="col-6"><div class="data-label">Status</div><div class="data-value">${item[5]}</div></div>
-                        <div class="col-6"><div class="data-label">Capacity (Capa)</div><div class="data-value">${item[4]}</div></div>
-                        <div class="col-12"><div class="data-label">Event Period</div><div class="data-value">${item[6]}</div></div>
-                        <div class="col-12"><div class="data-label">Reason</div><div class="data-value">${item[7]}</div></div>
-                        <div class="col-12">
-                            <div class="data-label">Comments</div>
-                            <div class="comment-box">${item[8]}</div>
-                        </div>
-                        <div class="col-12 mt-3 text-end">
-                            <small class="text-muted">Last Updated: ${new Date(item[0]).toLocaleString()}</small>
-                        </div>
-                    </div>
+                <div class="table-responsive">
+                    <table class="table table-bordered info-table">
+                        <tr><th>입력일</th><td>${new Date(item[0]).toLocaleString()}</td></tr>
+                        <tr><th>업체명</th><td><strong>${item[1]}</strong></td></tr>
+                        <tr><th>지역</th><td>${item[2]}</td></tr>
+                        <tr><th>품목</th><td>${item[3]}</td></tr>
+                        <tr><th>케파 (Capacity)</th><td><span class="text-primary fw-bold">${item[4]}</span></td></tr>
+                        <tr><th>상태 (싱테)</th><td><span class="status-badge ${item[5].replace(" ", "-")}">${item[5]}</span></td></tr>
+                        <tr><th>이벤트 기간</th><td>${item[6]}</td></tr>
+                        <tr><th>사유 (Reason)</th><td>${item[7]}</td></tr>
+                        <tr><th>코멘트 (Comments)</th><td class="bg-light"><em>${item[8]}</em></td></tr>
+                    </table>
                 </div>
             `;
         }
     }
-    start();
+    init();
 </script>
 </body>
 </html>
