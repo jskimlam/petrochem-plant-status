@@ -5,49 +5,50 @@
     <title>PLANT ARCHIVE 통합 대시보드</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        body { background-color: #f8f9fa; padding: 30px; }
-        .dashboard-container { max-width: 1100px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
-        .table th { background-color: #f1f3f5; color: #495057; text-align: center; vertical-align: middle; }
-        .table td { vertical-align: middle; }
-        .status-badge { padding: 4px 10px; border-radius: 4px; font-weight: bold; font-size: 0.85rem; }
+        body { background-color: #f8f9fa; padding: 40px; font-family: 'Segoe UI', sans-serif; }
+        .dashboard { max-width: 1200px; margin: auto; background: white; padding: 35px; border-radius: 15px; box-shadow: 0 5px 25px rgba(0,0,0,0.07); }
+        .table th { background-color: #343a40; color: white; text-align: center; font-size: 0.9rem; }
+        .table td { vertical-align: middle; border-bottom: 1px solid #dee2e6; }
+        .badge-status { padding: 6px 12px; border-radius: 4px; font-weight: bold; }
         .Shutdown { background-color: #ffe3e3; color: #e03131; }
         .Run-Cut { background-color: #fff4e6; color: #fd7e14; }
-        .comment-text { font-size: 0.9rem; color: #666; font-style: italic; }
     </style>
 </head>
 <body>
-<div class="container dashboard-container">
-    <h3 class="text-center mb-4 fw-bold">📊 석유화학 플랜트 아카이브 현황</h3>
+<div class="dashboard">
+    <h3 class="text-center mb-4 fw-bold">🏭 석유화학 플랜트 아카이브 (STATUS)</h3>
     
-    <div class="row g-2 mb-4">
+    <div class="row g-3 mb-5">
         <div class="col-md-6">
-            <select id="pSelect" class="form-select form-select-lg" onchange="updateComp()"><option value="">1. 품목(Product) 선택</option></select>
+            <label class="form-label fw-bold">품목(Product) 필터</label>
+            <select id="pSelect" class="form-select form-select-lg" onchange="updateComp()"><option value="">품목을 선택하세요</option></select>
         </div>
         <div class="col-md-6">
-            <select id="cSelect" class="form-select form-select-lg" onchange="renderTable()" disabled><option value="">2. 업체(Company) 선택</option></select>
+            <label class="form-label fw-bold">업체(Company) 필터</label>
+            <select id="cSelect" class="form-select form-select-lg" onchange="render()" disabled><option value="">업체를 선택하세요</option></select>
         </div>
     </div>
 
     <div class="table-responsive">
-        <table class="table table-bordered">
-            <thead class="table-light text-center">
+        <table class="table table-hover">
+            <thead>
                 <tr>
-                    <th>날짜(입력일)</th><th>업체명</th><th>지역</th><th>품목</th><th>케파(Capacity)</th>
-                    <th>상태(싱테)</th><th>이벤트 기간</th><th>사유</th><th>코멘트</th>
+                    <th>입력일</th><th>업체명</th><th>지역</th><th>품목</th><th>케파(Capacity)</th>
+                    <th>상태(싱테)</th><th>이벤트 기간</th><th>사유</th><th>코멘트(Comments)</th>
                 </tr>
             </thead>
             <tbody id="resultBody">
-                <tr><td colspan="9" class="text-center py-5 text-muted">상단 필터를 선택하여 데이터를 조회하세요.</td></tr>
+                <tr><td colspan="9" class="text-center py-5 text-muted">위 필터를 선택하면 시트 데이터가 나타납니다.</td></tr>
             </tbody>
         </table>
     </div>
 </div>
 
 <script>
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbzwce06Zq3EcugjzL_avUetVhNZXygulxfOoZI0nR_IMiJWu5deKnyBd1S_A2RQ4jbXNw/exec";
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbxJuVq47aFzMgcvM_mBG1x7JFfoKZrz7xIZ-T0rm3hcLkD4Hoxf3ML36m2-9ACus_p4VQ/exec";
     let db = [];
 
-    async function load() {
+    async function init() {
         const res = await fetch(GAS_URL);
         const data = await res.json();
         db = data.slice(1); // 헤더 제외
@@ -58,7 +59,7 @@
     function updateComp() {
         const p = document.getElementById('pSelect').value;
         const cs = document.getElementById('cSelect');
-        cs.innerHTML = '<option value="">2. 업체(Company) 선택</option>';
+        cs.innerHTML = '<option value="">업체를 선택하세요</option>';
         if(!p) { cs.disabled = true; return; }
         const comps = [...new Set(db.filter(x => x[3] === p).map(x => x[1]))];
         comps.forEach(c => cs.innerHTML += `<option value="${c}">${c}</option>`);
@@ -66,29 +67,29 @@
         document.getElementById('resultBody').innerHTML = '<tr><td colspan="9" class="text-center py-3">업체를 선택해주세요.</td></tr>';
     }
 
-    function renderTable() {
+    function render() {
         const p = document.getElementById('pSelect').value;
         const c = document.getElementById('cSelect').value;
         const body = document.getElementById('resultBody');
-        const rows = db.filter(x => x[3] === p && x[1] === c).reverse(); // 최신순 정렬
+        const list = db.filter(x => x[3] === p && x[1] === c).reverse(); // 최신 데이터가 위로
 
-        if(rows.length > 0) {
-            body.innerHTML = rows.map(item => `
+        if(list.length > 0) {
+            body.innerHTML = list.map(item => `
                 <tr>
-                    <td class="text-center small">${new Date(item[0]).toLocaleDateString()}</td>
+                    <td class="small text-center">${new Date(item[0]).toLocaleDateString()}</td>
                     <td class="fw-bold">${item[1]}</td>
-                    <td>${item[2]}</td>
+                    <td class="small">${item[2]}</td>
                     <td class="text-center">${item[3]}</td>
                     <td class="text-primary fw-bold text-center">${item[4]}</td>
-                    <td class="text-center"><span class="status-badge ${item[5].replace(" ", "-")}">${item[5]}</span></td>
+                    <td class="text-center"><span class="badge-status ${item[5].replace(" ", "-")}">${item[5]}</span></td>
                     <td class="small">${item[6]}</td>
                     <td>${item[7]}</td>
-                    <td class="comment-text">${item[8]}</td>
+                    <td class="text-muted" style="font-size: 0.85rem;">${item[8]}</td>
                 </tr>
             `).join('');
         }
     }
-    load();
+    init();
 </script>
 </body>
 </html>
