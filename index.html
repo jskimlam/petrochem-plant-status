@@ -191,14 +191,19 @@ some technical issues that occurred earlier in January."></textarea>
 <div class="page-wrap">
     <div class="filter-card">
         <div class="row g-2 align-items-center">
-            <div class="col-md-5">
+            <div class="col-md-4">
                 <select id="pSelect" onchange="updateComp()">
                     <option value="">품목(Product) 선택</option>
                 </select>
             </div>
-            <div class="col-md-5">
+            <div class="col-md-3">
                 <select id="cSelect" onchange="render()" disabled>
-                    <option value="">업체(Company) 선택</option>
+                    <option value="">전체 업체 보기</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <select id="rSelect" onchange="render()" disabled>
+                    <option value="">전체 사유 보기</option>
                 </select>
             </div>
             <div class="col-md-2">
@@ -254,19 +259,27 @@ some technical issues that occurred earlier in January."></textarea>
     function updateComp() {
         const p = document.getElementById('pSelect').value;
         const cs = document.getElementById('cSelect');
+        const rs = document.getElementById('rSelect');
         cs.innerHTML = '<option value="">전체 업체 보기</option>';
+        rs.innerHTML = '<option value="">전체 사유 보기</option>';
         document.getElementById('rc').style.display = 'none';
         if (!p) {
-            cs.disabled = true;
+            cs.disabled = true; rs.disabled = true;
             document.getElementById('displayArea').innerHTML =
                 '<div style="text-align:center;padding:55px;color:#ccc;font-size:.9rem">품목을 선택하세요.</div>';
             return;
         }
-        const comps = [...new Set(db.filter(x => x[3] === p).map(x => x[1]))].sort();
+        const filtered = db.filter(x => x[3] === p);
+        // 업체 목록
+        const comps = [...new Set(filtered.map(x => x[1]))].sort();
         comps.forEach(c => cs.innerHTML += `<option value="${c}">${c}</option>`);
         cs.disabled = false;
+        // 사유 목록 (H열=index 7)
+        const reasons = [...new Set(filtered.map(x => x[7]).filter(x => x && x !== '-'))].sort();
+        reasons.forEach(r => rs.innerHTML += `<option value="${r}">${r}</option>`);
+        rs.disabled = false;
         // 품목 선택만 해도 전체 카드 바로 표시
-        renderCards(p, '');
+        renderCards(p, '', '');
     }
 
     function sc(s) {
@@ -278,14 +291,17 @@ some technical issues that occurred earlier in January."></textarea>
     function render() {
         const p = document.getElementById('pSelect').value;
         const c = document.getElementById('cSelect').value;
-        renderCards(p, c);
+        const r = document.getElementById('rSelect').value;
+        renderCards(p, c, r);
     }
 
-    function renderCards(p, c) {
+    function renderCards(p, c, r) {
         if (!p) return;
-        // c가 비어있으면 품목 전체, 있으면 해당 업체만
-        const rows = db.filter(x => x[3] === p && (!c || x[1] === c))
-                       .sort((a, b) => new Date(b[0]) - new Date(a[0]));
+        const rows = db.filter(x =>
+            x[3] === p &&
+            (!c || x[1] === c) &&
+            (!r || x[7] === r)
+        ).sort((a, b) => new Date(b[0]) - new Date(a[0]));
         const area = document.getElementById('displayArea');
         const rcEl = document.getElementById('rc');
 
@@ -294,20 +310,22 @@ some technical issues that occurred earlier in January."></textarea>
             rcEl.style.display = 'none'; return;
         }
         rcEl.style.display = 'block';
-        rcEl.innerHTML = c
-            ? `<span>${c}</span> — 총 <span>${rows.length}건</span>`
+        const filterDesc = [c, r].filter(Boolean).join(' / ');
+        rcEl.innerHTML = filterDesc
+            ? `<span>${filterDesc}</span> — 총 <span>${rows.length}건</span>`
             : `<span>${p}</span> 전체 — 총 <span>${rows.length}건</span> (기사 최신순)`;
 
-        area.innerHTML = rows.map(item => {
+        area.innerHTML = rows.map((item, idx) => {
             const cls  = sc(item[5] || '');
             const date = item[0] ? new Date(item[0]).toLocaleString('ko-KR', {year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}) : '-';
             const capa = item[4] && item[4] !== '-' ? item[4] : null;
+            const comment = item[8] && item[8] !== '-' ? item[8] : null;
             return `
-            <div class="info-card card-${cls}">
+            <div class="info-card card-${cls}" id="card-${idx}">
                 <div class="card-top">
                     <div>
                         <div class="card-company">${item[1]||'-'}</div>
-                        <div class="card-date">입력일: ${date}</div>
+                        <div class="card-date">기사일: ${date}</div>
                     </div>
                     <span class="sbadge sb-${cls}">${item[5]||'-'}</span>
                 </div>
@@ -318,7 +336,7 @@ some technical issues that occurred earlier in January."></textarea>
                 <div class="row-item"><div class="rl">사유</div><div class="rv">${item[7]||'-'}</div></div>
                 <div class="row-item" style="flex-direction:column;border-bottom:none">
                     <div class="rl" style="margin-bottom:6px">코멘트</div>
-                    <div class="cmt-box">${item[8]&&item[8]!=='-'?item[8]:'<span style="color:#ccc">없음</span>'}</div>
+                    <div class="cmt-box" id="cmt-${idx}">${comment || '<span style="color:#ccc">없음</span>'}</div>
                 </div>
             </div>`;
         }).join('');
@@ -464,15 +482,14 @@ some technical issues that occurred earlier in January."></textarea>
                 closeModal();
                 const curP = document.getElementById('pSelect').value;
                 const curC = document.getElementById('cSelect').value;
+                const curR = document.getElementById('rSelect').value;
                 await init();
-                // 저장 전 선택 상태 복원
                 if (curP) {
                     document.getElementById('pSelect').value = curP;
                     updateComp();
-                    if (curC) {
-                        document.getElementById('cSelect').value = curC;
-                        renderCards(curP, curC);
-                    }
+                    if (curC) document.getElementById('cSelect').value = curC;
+                    if (curR) document.getElementById('rSelect').value = curR;
+                    renderCards(curP, curC, curR);
                 }
             } else toast('저장 실패: '+(r.message||'오류'),'er');
         } catch(e) {
