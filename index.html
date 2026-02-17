@@ -2,83 +2,93 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>플랜트 정보 대시보드</title>
+    <title>PLANT ARCHIVE 통합 대시보드</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body { background-color: #f8f9fa; padding: 30px; }
-        .container { max-width: 1000px; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
-        .info-table th { width: 30%; background-color: #f1f3f5; }
-        .status-badge { padding: 5px 12px; border-radius: 20px; font-weight: bold; }
-        .Shutdown { background-color: #ffdee2; color: #d63031; }
+        .dashboard-container { max-width: 1100px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+        .table th { background-color: #f1f3f5; color: #495057; text-align: center; vertical-align: middle; }
+        .table td { vertical-align: middle; }
+        .status-badge { padding: 4px 10px; border-radius: 4px; font-weight: bold; font-size: 0.85rem; }
+        .Shutdown { background-color: #ffe3e3; color: #e03131; }
         .Run-Cut { background-color: #fff4e6; color: #fd7e14; }
+        .comment-text { font-size: 0.9rem; color: #666; font-style: italic; }
     </style>
 </head>
 <body>
-<div class="container">
-    <h3 class="text-center mb-4">📑 PLANT ARCHIVE STATUS</h3>
+<div class="container dashboard-container">
+    <h3 class="text-center mb-4 fw-bold">📊 석유화학 플랜트 아카이브 현황</h3>
     
-    <div class="row g-3 mb-4">
+    <div class="row g-2 mb-4">
         <div class="col-md-6">
-            <label class="form-label fw-bold">1. 품목 선택</label>
-            <select id="pSelect" class="form-select" onchange="updateComp()"><option value="">품목 선택</option></select>
+            <select id="pSelect" class="form-select form-select-lg" onchange="updateComp()"><option value="">1. 품목(Product) 선택</option></select>
         </div>
         <div class="col-md-6">
-            <label class="form-label fw-bold">2. 업체 선택</label>
-            <select id="cSelect" class="form-select" onchange="render()" disabled><option value="">업체 선택</option></select>
+            <select id="cSelect" class="form-select form-select-lg" onchange="renderTable()" disabled><option value="">2. 업체(Company) 선택</option></select>
         </div>
     </div>
 
-    <div id="resultArea"></div>
+    <div class="table-responsive">
+        <table class="table table-bordered">
+            <thead class="table-light text-center">
+                <tr>
+                    <th>날짜(입력일)</th><th>업체명</th><th>지역</th><th>품목</th><th>케파(Capacity)</th>
+                    <th>상태(싱테)</th><th>이벤트 기간</th><th>사유</th><th>코멘트</th>
+                </tr>
+            </thead>
+            <tbody id="resultBody">
+                <tr><td colspan="9" class="text-center py-5 text-muted">상단 필터를 선택하여 데이터를 조회하세요.</td></tr>
+            </tbody>
+        </table>
+    </div>
 </div>
 
 <script>
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbxsSY65cTM0BqHC8InuuwFyvb6OsCNtzHBSNo-zvWqi0pD6XxI_qG-ZPi8HXwg2GQrEIw/exec";
-    let dataList = [];
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbzwce06Zq3EcugjzL_avUetVhNZXygulxfOoZI0nR_IMiJWu5deKnyBd1S_A2RQ4jbXNw/exec";
+    let db = [];
 
-    async function init() {
+    async function load() {
         const res = await fetch(GAS_URL);
         const data = await res.json();
-        dataList = data.slice(1); // 헤더 제외
-        const prods = [...new Set(dataList.map(x => x[3]))].filter(x => x && x !== "-");
+        db = data.slice(1); // 헤더 제외
+        const prods = [...new Set(db.map(x => x[3]))].filter(x => x && x !== "-");
         prods.forEach(p => document.getElementById('pSelect').innerHTML += `<option value="${p}">${p}</option>`);
     }
 
     function updateComp() {
         const p = document.getElementById('pSelect').value;
         const cs = document.getElementById('cSelect');
-        cs.innerHTML = '<option value="">업체 선택</option>';
+        cs.innerHTML = '<option value="">2. 업체(Company) 선택</option>';
         if(!p) { cs.disabled = true; return; }
-        const comps = [...new Set(dataList.filter(x => x[3] === p).map(x => x[1]))];
+        const comps = [...new Set(db.filter(x => x[3] === p).map(x => x[1]))];
         comps.forEach(c => cs.innerHTML += `<option value="${c}">${c}</option>`);
         cs.disabled = false;
-        document.getElementById('resultArea').innerHTML = "";
+        document.getElementById('resultBody').innerHTML = '<tr><td colspan="9" class="text-center py-3">업체를 선택해주세요.</td></tr>';
     }
 
-    function render() {
+    function renderTable() {
         const p = document.getElementById('pSelect').value;
         const c = document.getElementById('cSelect').value;
-        const area = document.getElementById('resultArea');
-        const item = [...dataList].reverse().find(x => x[3] === p && x[1] === c); // 최신 데이터
+        const body = document.getElementById('resultBody');
+        const rows = db.filter(x => x[3] === p && x[1] === c).reverse(); // 최신순 정렬
 
-        if(item) {
-            area.innerHTML = `
-                <div class="table-responsive">
-                    <table class="table table-bordered info-table">
-                        <tr><th>입력일</th><td>${new Date(item[0]).toLocaleString()}</td></tr>
-                        <tr><th>업체명</th><td><strong>${item[1]}</strong></td></tr>
-                        <tr><th>지역</th><td>${item[2]}</td></tr>
-                        <tr><th>품목</th><td>${item[3]}</td></tr>
-                        <tr><th>케파 (Capacity)</th><td><span class="text-primary fw-bold">${item[4]}</span></td></tr>
-                        <tr><th>상태 (싱테)</th><td><span class="status-badge ${item[5].replace(" ", "-")}">${item[5]}</span></td></tr>
-                        <tr><th>이벤트 기간</th><td>${item[6]}</td></tr>
-                        <tr><th>사유 (Reason)</th><td>${item[7]}</td></tr>
-                        <tr><th>코멘트 (Comments)</th><td class="bg-light"><em>${item[8]}</em></td></tr>
-                    </table>
-                </div>
-            `;
+        if(rows.length > 0) {
+            body.innerHTML = rows.map(item => `
+                <tr>
+                    <td class="text-center small">${new Date(item[0]).toLocaleDateString()}</td>
+                    <td class="fw-bold">${item[1]}</td>
+                    <td>${item[2]}</td>
+                    <td class="text-center">${item[3]}</td>
+                    <td class="text-primary fw-bold text-center">${item[4]}</td>
+                    <td class="text-center"><span class="status-badge ${item[5].replace(" ", "-")}">${item[5]}</span></td>
+                    <td class="small">${item[6]}</td>
+                    <td>${item[7]}</td>
+                    <td class="comment-text">${item[8]}</td>
+                </tr>
+            `).join('');
         }
     }
-    init();
+    load();
 </script>
 </body>
 </html>
