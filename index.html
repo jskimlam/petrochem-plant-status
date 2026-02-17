@@ -109,6 +109,28 @@
         .btn-m-save:disabled { background:#aaa; cursor:not-allowed; }
         .btn-m-close { padding:12px 16px; background:#ecf0f1; color:#666; border:none; border-radius:9px; cursor:pointer; font-weight:700; font-size:.82rem; }
 
+        /* 수정 버튼 */
+        .btn-edit { background:#f0f5f9; border:1.5px solid #d0dce8; color:var(--primary); border-radius:12px; padding:4px 10px; font-size:.67rem; font-weight:800; cursor:pointer; transition:all .2s; white-space:nowrap; }
+        .btn-edit:hover { background:var(--primary); color:white; border-color:var(--primary); }
+
+        /* 파싱 input 스타일 */
+        .pv-input { width:100%; border:1.5px solid #e2e8f0; border-radius:7px; padding:6px 9px; font-size:.82rem; font-weight:700; color:#1a1a2e; background:white; box-sizing:border-box; transition:border-color .2s; }
+        .pv-input:focus { outline:none; border-color:var(--accent); }
+        .pv-input.hi { color:var(--accent); }
+        .pv-input.er { color:var(--red); }
+        select.pv-input { cursor:pointer; }
+        .pv-ta { height:70px; resize:vertical; font-weight:400; font-size:.78rem; line-height:1.6; }
+
+        /* 수정 모달 */
+        #edit-overlay { position:fixed; inset:0; background:rgba(5,20,50,.88); z-index:13000; display:none; align-items:center; justify-content:center; backdrop-filter:blur(5px); }
+        #edit-overlay.open { display:flex; }
+        #edit-modal { width:560px; max-height:90vh; background:white; border-radius:18px; box-shadow:0 24px 70px rgba(0,0,0,.5); display:flex; flex-direction:column; overflow:hidden; animation:mIn .22s ease; }
+        .fg2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+        .edit-input { width:100%; border:1.5px solid #e2e8f0; border-radius:7px; padding:8px 10px; font-size:.82rem; font-weight:600; color:#1a1a2e; background:white; box-sizing:border-box; transition:border-color .2s; margin-top:4px; }
+        .edit-input:focus { outline:none; border-color:var(--accent); }
+        .edit-input.hi { color:var(--accent); font-weight:700; }
+        .edit-ta { height:80px; resize:vertical; font-weight:400; font-size:.78rem; line-height:1.6; }
+
         /* 토스트 */
         #toast { position:fixed; bottom:26px; right:26px; padding:12px 18px; border-radius:10px; font-size:.79rem; font-weight:700; z-index:19999; opacity:0; transform:translateY(14px); transition:all .26s; pointer-events:none; max-width:280px; color:white; }
         #toast.show { opacity:1; transform:translateY(0); }
@@ -128,6 +150,41 @@
     <button class="btn-input-top" onclick="openModal()">
         <span>📋</span> 정보 입력
     </button>
+</div>
+
+<!-- 수정 모달 -->
+<div id="edit-overlay">
+    <div id="edit-modal">
+        <div class="mhead">
+            <h3>✏️ 저장 데이터 수정</h3>
+            <span class="ver">Edit</span>
+        </div>
+        <div class="mbody" style="padding:20px 22px">
+            <div class="fg2">
+                <div><div class="mlabel">업체명 *</div><input class="edit-input hi" id="ei-company"></div>
+                <div><div class="mlabel">지역</div><input class="edit-input" id="ei-location"></div>
+                <div><div class="mlabel">품목</div><input class="edit-input" id="ei-product"></div>
+                <div><div class="mlabel">케파(Capacity)</div><input class="edit-input" id="ei-capa"></div>
+                <div>
+                    <div class="mlabel">상태</div>
+                    <select class="edit-input" id="ei-status">
+                        <option>Shutdown</option>
+                        <option>Run Cut</option>
+                        <option>Maintenance</option>
+                        <option>Restart</option>
+                    </select>
+                </div>
+                <div><div class="mlabel">사유</div><input class="edit-input" id="ei-reason"></div>
+                <div><div class="mlabel">이벤트 기간</div><input class="edit-input" id="ei-period"></div>
+                <div><div class="mlabel">기사 발행일</div><input class="edit-input" id="ei-date"></div>
+            </div>
+            <div style="margin-top:12px"><div class="mlabel">코멘트</div><textarea class="edit-input edit-ta" id="ei-comment"></textarea></div>
+        </div>
+        <div class="mfoot">
+            <button class="btn-m-parse" id="btn-edit-save" onclick="doEditSave()">💾 수정 저장</button>
+            <button class="btn-m-close" onclick="closeEditModal()">닫기</button>
+        </div>
+    </div>
 </div>
 
 <!-- ICIS 입력 모달 -->
@@ -229,7 +286,7 @@ some technical issues that occurred earlier in January."></textarea>
     const GAS_URL   = "https://script.google.com/macros/s/AKfycbx87rDTcam2G-Qg2dcmCM5I1hQ56RG8tIboojIu1S8K1gMT6vw6K1dG8oeaUGb3UesnnA/exec";
     const ADMIN_PW  = "0111";
 
-    let db = [], parsed = null, authed = false;
+    let db = [], parsed = null, authed = false, currentRows = [], editRowKey = null;
 
     // ── 조회 ──
     async function init() {
@@ -315,10 +372,11 @@ some technical issues that occurred earlier in January."></textarea>
             ? `<span>${filterDesc}</span> — 총 <span>${rows.length}건</span>`
             : `<span>${p}</span> 전체 — 총 <span>${rows.length}건</span> (기사 최신순)`;
 
+        currentRows = rows; // 수정 모달에서 참조용
         area.innerHTML = rows.map((item, idx) => {
-            const cls  = sc(item[5] || '');
-            const date = item[0] ? new Date(item[0]).toLocaleString('ko-KR', {year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}) : '-';
-            const capa = item[4] && item[4] !== '-' ? item[4] : null;
+            const cls     = sc(item[5] || '');
+            const date    = item[0] ? new Date(item[0]).toLocaleString('ko-KR', {year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}) : '-';
+            const capa    = item[4] && item[4] !== '-' ? item[4] : null;
             const comment = item[8] && item[8] !== '-' ? item[8] : null;
             return `
             <div class="info-card card-${cls}" id="card-${idx}">
@@ -327,7 +385,10 @@ some technical issues that occurred earlier in January."></textarea>
                         <div class="card-company">${item[1]||'-'}</div>
                         <div class="card-date">기사일: ${date}</div>
                     </div>
-                    <span class="sbadge sb-${cls}">${item[5]||'-'}</span>
+                    <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+                        <span class="sbadge sb-${cls}">${item[5]||'-'}</span>
+                        <button class="btn-edit" onclick="openEditModal(${idx})">✏️ 수정</button>
+                    </div>
                 </div>
                 <div class="row-item"><div class="rl">지역</div><div class="rv">${item[2]||'-'}</div></div>
                 <div class="row-item"><div class="rl">품목</div><div class="rv">${item[3]||'-'}</div></div>
@@ -336,11 +397,89 @@ some technical issues that occurred earlier in January."></textarea>
                 <div class="row-item"><div class="rl">사유</div><div class="rv">${item[7]||'-'}</div></div>
                 <div class="row-item" style="flex-direction:column;border-bottom:none">
                     <div class="rl" style="margin-bottom:6px">코멘트</div>
-                    <div class="cmt-box" id="cmt-${idx}">${comment || '<span style="color:#ccc">없음</span>'}</div>
+                    <div class="cmt-box">${comment || '<span style="color:#ccc">없음</span>'}</div>
                 </div>
             </div>`;
         }).join('');
     }
+
+    // ── 저장 데이터 수정 모달 ──
+    function openEditModal(idx) {
+        const item = currentRows[idx];
+        if (!item) return;
+        editRowKey = { date: String(item[0]), company: item[1] }; // 행 식별용
+
+        // 기존 값 채우기
+        document.getElementById('ei-company').value  = item[1]  || '';
+        document.getElementById('ei-location').value = item[2]  || '';
+        document.getElementById('ei-product').value  = item[3]  || '';
+        document.getElementById('ei-capa').value     = item[4]  || '';
+        document.getElementById('ei-status').value   = item[5]  || 'Maintenance';
+        document.getElementById('ei-period').value   = item[6]  || '';
+        document.getElementById('ei-reason').value   = item[7]  || '';
+        document.getElementById('ei-comment').value  = item[8]  || '';
+        document.getElementById('ei-date').value     = item[0]  || '';
+
+        document.getElementById('edit-overlay').classList.add('open');
+    }
+
+    function closeEditModal() {
+        document.getElementById('edit-overlay').classList.remove('open');
+        editRowKey = null;
+    }
+
+    async function doEditSave() {
+        if (!editRowKey) return;
+        const btn = document.getElementById('btn-edit-save');
+        btn.textContent = '저장 중...'; btn.disabled = true;
+        try {
+            const res = await fetch(GAS_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain' },
+                body: JSON.stringify({
+                    action: 'editIcis',
+                    rowKey: editRowKey,  // 행 식별 (날짜 + 업체명)
+                    data: {
+                        date:     document.getElementById('ei-date').value.trim(),
+                        company:  document.getElementById('ei-company').value.trim(),
+                        location: document.getElementById('ei-location').value.trim(),
+                        product:  document.getElementById('ei-product').value.trim(),
+                        capa:     document.getElementById('ei-capa').value.trim(),
+                        status:   document.getElementById('ei-status').value,
+                        period:   document.getElementById('ei-period').value.trim(),
+                        reason:   document.getElementById('ei-reason').value.trim(),
+                        comment:  document.getElementById('ei-comment').value.trim(),
+                    }
+                })
+            });
+            const r = await res.json();
+            if (r.success) {
+                toast('✅ 수정 완료!', 'ok', 3000);
+                closeEditModal();
+                // 현재 필터 상태 유지하며 새로고침
+                const curP = document.getElementById('pSelect').value;
+                const curC = document.getElementById('cSelect').value;
+                const curR = document.getElementById('rSelect').value;
+                await init();
+                if (curP) {
+                    document.getElementById('pSelect').value = curP;
+                    updateComp();
+                    if (curC) document.getElementById('cSelect').value = curC;
+                    if (curR) document.getElementById('rSelect').value = curR;
+                    renderCards(curP, curC, curR);
+                }
+            } else toast('수정 실패: ' + (r.message || '오류'), 'er');
+        } catch(e) {
+            toast('❌ 오류: ' + e.message, 'er');
+        } finally {
+            btn.textContent = '💾 수정 저장'; btn.disabled = false;
+        }
+    }
+
+    // ESC로 수정 모달 닫기
+    document.getElementById('edit-overlay').addEventListener('click', e => {
+        if (e.target === document.getElementById('edit-overlay')) closeEditModal();
+    });
 
     // ── ICIS 입력 모달 ──
     function openModal() {
@@ -415,41 +554,65 @@ some technical issues that occurred earlier in January."></textarea>
         const dateMatch = raw.match(/(\d{1,2}-(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-\d{2})\s+(\d{2}:\d{2})/i);
         const articleDate = dateMatch ? `${dateMatch[1]} ${dateMatch[2]}` : '-';
 
-        parsed = {company,location,product,capa,status,period,reason,comment,articleDate,raw};
+        parsed = {company,location,product,capa,status,period,start,finish,reason,comment,articleDate,raw};
 
         document.getElementById('pg').innerHTML = `
-            <div class="pf"><div class="pl">업체명</div><div class="pv hi">${company}</div></div>
-            <div class="pf"><div class="pl">지역</div><div class="pv">${location}</div></div>
-            <div class="pf"><div class="pl">품목</div><div class="pv">${product}</div></div>
-            <div class="pf ${capaOk?'capa-ok':'capa-miss'}"><div class="pl">케파 ${capaOk?'✅':'⚠️ 미인식'}</div><div class="pv ${capaOk?'hi':'er'}">${capa}</div></div>
-            <div class="pf"><div class="pl">상태</div><div class="pv">${pillHtml(status)}</div></div>
-            <div class="pf"><div class="pl">이벤트 기간</div><div class="pv">${period}</div></div>
-            <div class="pf"><div class="pl">사유</div><div class="pv">${reason}</div></div>
-            <div class="pf"><div class="pl">기사 발행일 📰</div><div class="pv hi">${articleDate}</div></div>
-            <div class="pf full"><div class="pl">코멘트</div><div class="pv-cmt">${comment!=='-'?comment:'<span style="color:#ccc">없음</span>'}</div></div>`;
+            <div class="pf"><div class="pl">업체명 *</div><input class="pv-input hi" id="ed-company"  value="${company}"></div>
+            <div class="pf"><div class="pl">지역 *</div><input class="pv-input"    id="ed-location" value="${location}"></div>
+            <div class="pf"><div class="pl">품목 *</div><input class="pv-input"    id="ed-product"  value="${product}"></div>
+            <div class="pf ${capaOk?'capa-ok':'capa-miss'}">
+                <div class="pl">케파 ${capaOk?'✅':'⚠️ 직접 입력'}</div>
+                <input class="pv-input ${capaOk?'hi':'er'}" id="ed-capa" value="${capa}">
+            </div>
+            <div class="pf">
+                <div class="pl">상태</div>
+                <select class="pv-input" id="ed-status">
+                    <option ${status==='Shutdown'?'selected':''}>Shutdown</option>
+                    <option ${status==='Run Cut'?'selected':''}>Run Cut</option>
+                    <option ${status==='Maintenance'?'selected':''}>Maintenance</option>
+                    <option ${status==='Restart'?'selected':''}>Restart</option>
+                </select>
+            </div>
+            <div class="pf"><div class="pl">사유</div><input class="pv-input" id="ed-reason" value="${reason}"></div>
+            <div class="pf"><div class="pl">Event start</div><input class="pv-input" id="ed-start"  value="${start}"></div>
+            <div class="pf"><div class="pl">Event finish</div><input class="pv-input" id="ed-finish" value="${finish}"></div>
+            <div class="pf"><div class="pl">기사 발행일 📰</div><input class="pv-input hi" id="ed-articledate" value="${articleDate}"></div>
+            <div class="pf full"><div class="pl">코멘트</div><textarea class="pv-input pv-ta" id="ed-comment">${comment!=='-'?comment:''}</textarea></div>`;
 
         const b = document.getElementById('pbadge');
-        b.textContent = capaOk?'✅ 파싱 완료':'⚠️ 케파 미인식';
+        b.textContent = capaOk?'✅ 파싱 완료 — 수정 후 저장':'⚠️ 케파 미인식 — 직접 입력 후 저장';
         b.className   = `pbadge ${capaOk?'pb-ok':'pb-warn'}`;
         document.getElementById('pv-wrap').style.display = 'block';
         document.getElementById('btn-save').style.display = 'block';
-        toast(allOk?'파싱 완료! 확인 후 저장하세요.':'⚠️ 일부 필드 미인식 — 확인 필요', allOk?'ok':'inf');
+        toast(allOk?'파싱 완료! 내용 확인 및 수정 후 저장하세요.':'⚠️ 일부 필드 미인식 — 직접 입력하세요.', allOk?'ok':'inf');
     }
 
     async function doSave() {
         if (!parsed) { toast('먼저 파싱하세요.','er'); return; }
 
+        // 수정된 input 값 읽기
+        const company     = document.getElementById('ed-company').value.trim();
+        const location    = document.getElementById('ed-location').value.trim();
+        const product     = document.getElementById('ed-product').value.trim();
+        const capa        = document.getElementById('ed-capa').value.trim();
+        const status      = document.getElementById('ed-status').value;
+        const reason      = document.getElementById('ed-reason').value.trim();
+        const start       = document.getElementById('ed-start').value.trim();
+        const finish      = document.getElementById('ed-finish').value.trim();
+        const articleDate = document.getElementById('ed-articledate').value.trim();
+        const comment     = document.getElementById('ed-comment').value.trim();
+        const period      = (start&&start!=='-'||finish&&finish!=='-') ? `${start} ~ ${finish}` : '-';
+
+        if (!company) { toast('업체명을 입력하세요.','er'); return; }
+
         // ── 중복 체크: 업체명 + 기사발행일 조합이 이미 있으면 차단 ──
         const isDup = db.some(row => {
             const rowCompany = (row[1] || '').trim().toLowerCase();
             const rowDate    = row[0] ? String(row[0]).trim() : '';
-            const chkCompany = parsed.company.trim().toLowerCase();
-            const chkDate    = parsed.articleDate;
-            // 업체명 일치 + 날짜 문자열 포함 여부
-            return rowCompany === chkCompany && rowDate.includes(chkDate.split(' ')[0]);
+            return rowCompany === company.toLowerCase() && rowDate.includes(articleDate.split(' ')[0]);
         });
         if (isDup) {
-            toast('⚠️ 이미 저장된 기사입니다 — ' + parsed.company + ' / ' + parsed.articleDate, 'inf', 5000);
+            toast('⚠️ 이미 저장된 기사입니다 — ' + company + ' / ' + articleDate, 'inf', 5000);
             return;
         }
 
@@ -462,17 +625,11 @@ some technical issues that occurred earlier in January."></textarea>
                 body: JSON.stringify({
                     action:'saveIcis',
                     data:{
-                        date:     parsed.articleDate,  // A열 = 기사 발행일
-                        company:  parsed.company,
-                        location: parsed.location,
-                        product:  parsed.product,
-                        capa:     parsed.capa,
-                        status:   parsed.status,
-                        period:   parsed.period,
-                        reason:   parsed.reason,
-                        comment:  parsed.comment,
+                        date:     articleDate,
+                        company, location, product, capa,
+                        status,  period,   reason,  comment,
                         raw:      parsed.raw,
-                        articleDate: parsed.articleDate
+                        articleDate
                     }
                 })
             });
@@ -532,6 +689,32 @@ function doPost(e) {
         d.capa, d.status, d.period, d.reason, d.comment, '', d.raw
       ]);
       return ContentService.createTextOutput(JSON.stringify({success:true,message:d.company+' 저장 완료'})).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (body.action === 'editIcis') {
+      var key  = body.rowKey;  // { date, company }
+      var d    = body.data;
+      var sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getActiveSheet();
+      var rows  = sheet.getDataRange().getValues();
+      for (var i = 1; i < rows.length; i++) {
+        var rowDate    = rows[i][0] ? String(rows[i][0]).trim() : '';
+        var rowCompany = rows[i][1] ? rows[i][1].toString().trim().toLowerCase() : '';
+        if (rowCompany === key.company.trim().toLowerCase() &&
+            rowDate.includes(key.date.substring(0, 10))) {
+          var r = i + 1; // 1-indexed
+          sheet.getRange(r, 1).setValue(d.date);
+          sheet.getRange(r, 2).setValue(d.company);
+          sheet.getRange(r, 3).setValue(d.location);
+          sheet.getRange(r, 4).setValue(d.product);
+          sheet.getRange(r, 5).setValue(d.capa);
+          sheet.getRange(r, 6).setValue(d.status);
+          sheet.getRange(r, 7).setValue(d.period);
+          sheet.getRange(r, 8).setValue(d.reason);
+          sheet.getRange(r, 9).setValue(d.comment);
+          return ContentService.createTextOutput(JSON.stringify({success:true,message:'수정 완료'})).setMimeType(ContentService.MimeType.JSON);
+        }
+      }
+      return ContentService.createTextOutput(JSON.stringify({success:false,message:'해당 행을 찾을 수 없습니다'})).setMimeType(ContentService.MimeType.JSON);
     }
     return ContentService.createTextOutput(JSON.stringify({success:false,message:'unknown action'})).setMimeType(ContentService.MimeType.JSON);
   } catch(err) {
