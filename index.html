@@ -133,9 +133,46 @@
         <div class="brand">CREATED BY JS KIM OF LAM</div>
         <div class="sub">Plant Status Archive</div>
     </div>
-    <button class="btn-input-top" onclick="openModal()">
-        <span>📋</span> 정보 제보
-    </button>
+    <div style="display:flex;align-items:center;gap:10px;">
+        <span id="mode-badge" style="display:none;font-size:.65rem;font-weight:900;padding:5px 12px;border-radius:20px;"></span>
+        <button class="btn-input-top" id="btn-fix-mode" onclick="openFixModal()" style="background:#8e44ad;">
+            <span>📂</span> 픽스모드
+        </button>
+        <button class="btn-input-top" onclick="openModal()">
+            <span>📋</span> 정보 제보
+        </button>
+    </div>
+</div>
+
+<!-- 픽스모드 모달 -->
+<div id="fix-overlay" style="position:fixed;inset:0;background:rgba(5,20,50,.88);z-index:9100;display:none;align-items:center;justify-content:center;backdrop-filter:blur(5px);">
+    <div style="width:600px;max-height:92vh;background:white;border-radius:18px;box-shadow:0 24px 70px rgba(0,0,0,.5);display:flex;flex-direction:column;overflow:hidden;animation:mIn .22s ease;">
+        <div style="background:#8e44ad;color:white;padding:18px 22px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
+            <div>
+                <h3 style="margin:0;font-size:.98rem;font-weight:900;">📂 오프라인 픽스모드 데이터 로드</h3>
+                <div style="font-size:.65rem;color:rgba(255,255,255,.6);margin-top:3px;">Google Sheets 접속 불가 시 — 엑셀/시트 복사 붙여넣기로 로컬 조회</div>
+            </div>
+            <span style="background:rgba(255,255,255,.2);font-size:.6rem;padding:3px 9px;border-radius:9px;font-weight:900;">OFFLINE</span>
+        </div>
+        <div style="padding:20px 22px;overflow-y:auto;flex:1;">
+            <div style="background:#f3e8ff;border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:.76rem;color:#6b21a8;line-height:1.7;">
+                <strong>📌 사용 방법</strong><br>
+                구글시트 또는 엑셀에서 <strong>데이터 전체 선택 후 복사(Ctrl+A → Ctrl+C)</strong>하여 아래에 붙여넣으세요.<br>
+                저장 기능은 비활성화되며 <strong>조회 전용</strong>으로 동작합니다.
+            </div>
+            <span style="font-size:.65rem;font-weight:900;color:#aaa;text-transform:uppercase;letter-spacing:.1em;display:block;margin-bottom:7px;">시트 데이터 붙여넣기 (탭 구분 TSV)</span>
+            <textarea id="fix-input" style="width:100%;height:180px;border:2px solid #e2e8f0;border-radius:10px;padding:13px;font-size:.76rem;font-family:'Segoe UI',monospace;resize:vertical;line-height:1.65;color:#333;transition:border-color .2s;box-sizing:border-box;outline:none;"
+                placeholder="여기에 붙여넣기 (Ctrl+V)&#10;&#10;첫 행은 헤더로 인식됩니다.&#10;열 순서: 기사일자 | 업체명 | 지역 | 품목 | 케파 | 상태 | 이벤트기간 | 사유 | 코멘트 ..."
+                onfocus="this.style.borderColor='#8e44ad'"
+                onblur="this.style.borderColor='#e2e8f0'"></textarea>
+            <div id="fix-preview" style="display:none;margin-top:12px;background:#f8fafc;border-radius:9px;padding:11px 14px;font-size:.74rem;color:#555;border:1.5px solid #e2e8f0;"></div>
+        </div>
+        <div style="padding:14px 22px;border-top:1px solid #eee;display:flex;gap:9px;flex-shrink:0;background:#fafafa;">
+            <button onclick="doFixLoad()" style="flex:2;padding:12px;background:#8e44ad;color:white;border:none;border-radius:9px;cursor:pointer;font-weight:900;font-size:.82rem;">📂 데이터 로드</button>
+            <button onclick="clearFixMode()" style="flex:1;padding:12px;background:#e74c3c;color:white;border:none;border-radius:9px;cursor:pointer;font-weight:700;font-size:.82rem;">🔄 온라인 복귀</button>
+            <button onclick="closeFixModal()" style="padding:12px 16px;background:#ecf0f1;color:#666;border:none;border-radius:9px;cursor:pointer;font-weight:700;font-size:.82rem;">닫기</button>
+        </div>
+    </div>
 </div>
 
 <!-- ICIS 입력 모달 -->
@@ -238,9 +275,31 @@ some technical issues that occurred earlier in January."></textarea>
     const ADMIN_PW  = "0111";
 
     let db = [], parsed = null, authed = false, currentRows = [];
+    let isFixMode = false; // 픽스모드 상태
+
+    // ── 모드 배지 업데이트 ──
+    function updateModeBadge() {
+        const badge = document.getElementById('mode-badge');
+        if (isFixMode) {
+            badge.style.display = 'inline-block';
+            badge.style.background = '#f3e8ff';
+            badge.style.color = '#6b21a8';
+            badge.textContent = '📂 픽스모드 (오프라인)';
+        } else {
+            badge.style.display = 'none';
+        }
+    }
 
     // ── 조회 ──
     async function init() {
+        if (isFixMode) {
+            // 픽스모드에서는 GAS 호출 없이 기존 db 유지
+            const prods = [...new Set(db.map(x => x[3]))].filter(x => x && x !== '-');
+            const ps = document.getElementById('pSelect');
+            ps.innerHTML = '<option value="">품목(Product) 선택</option>';
+            prods.forEach(p => ps.innerHTML += `<option value="${p}">${p}</option>`);
+            return;
+        }
         document.getElementById('loading').style.display = 'block';
         document.getElementById('displayArea').innerHTML = '';
         document.getElementById('rc').style.display = 'none';
@@ -254,8 +313,20 @@ some technical issues that occurred earlier in January."></textarea>
             ps.innerHTML = '<option value="">품목(Product) 선택</option>';
             prods.forEach(p => ps.innerHTML += `<option value="${p}">${p}</option>`);
         } catch(e) {
-            document.getElementById('displayArea').innerHTML =
-                `<div style="text-align:center;padding:50px;color:#e74c3c;font-size:.85rem">❌ 로드 실패: ${e.message}</div>`;
+            // 연결 실패 시 픽스모드 안내
+            document.getElementById('displayArea').innerHTML = `
+                <div style="text-align:center;padding:40px 20px;">
+                    <div style="font-size:2.2rem;margin-bottom:12px;">🔌</div>
+                    <div style="font-size:.95rem;font-weight:900;color:#6b21a8;margin-bottom:6px;">Google Sheets 연결 실패</div>
+                    <div style="font-size:.78rem;color:#aaa;margin-bottom:20px;line-height:1.7;">
+                        사내 보안 네트워크 또는 인터넷 연결 문제로 데이터를 불러올 수 없습니다.<br>
+                        엑셀/시트를 복사해서 <strong>픽스모드</strong>로 조회할 수 있습니다.
+                    </div>
+                    <button onclick="openFixModal()" style="background:#8e44ad;color:white;border:none;padding:12px 28px;border-radius:20px;font-weight:900;font-size:.85rem;cursor:pointer;">
+                        📂 픽스모드로 전환
+                    </button>
+                    <div style="margin-top:12px;font-size:.68rem;color:#ccc;">오류: ${e.message}</div>
+                </div>`;
         } finally {
             document.getElementById('loading').style.display = 'none';
             if (!document.getElementById('displayArea').innerHTML.trim())
@@ -371,6 +442,14 @@ some technical issues that occurred earlier in January."></textarea>
             document.getElementById('input-screen').style.display = 'block';
             document.getElementById('btn-parse').style.display = 'block';
         }
+        // 픽스모드 시 저장 버튼 완전 비활성화 안내
+        if (isFixMode) {
+            const saveBtn = document.getElementById('btn-save');
+            saveBtn.style.display = 'block';
+            saveBtn.disabled = true;
+            saveBtn.textContent = '🔒 저장 불가 (픽스모드)';
+            saveBtn.style.background = '#aaa';
+        }
         document.getElementById('overlay').classList.add('open');
         if (!authed) setTimeout(() => document.getElementById('pw-input').focus(), 100);
     }
@@ -392,11 +471,78 @@ some technical issues that occurred earlier in January."></textarea>
 
     function closeModal() { document.getElementById('overlay').classList.remove('open'); }
 
-    // 줄끝까지만 추출 — 다음 줄 딸려오는 문제 완전 차단
-    function xf(text, key) {
-        const esc = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const m = text.match(new RegExp(esc + '[^:\\r\\n]*:\\s*([^\\r\\n]+)', 'i'));
-        return m ? m[1].trim() : '-';
+    // ── 픽스모드 함수들 ──
+    function openFixModal() {
+        document.getElementById('fix-overlay').style.display = 'flex';
+        document.getElementById('fix-input').value = '';
+        document.getElementById('fix-preview').style.display = 'none';
+        setTimeout(() => document.getElementById('fix-input').focus(), 100);
+    }
+    function closeFixModal() { document.getElementById('fix-overlay').style.display = 'none'; }
+
+    function doFixLoad() {
+        const raw = document.getElementById('fix-input').value.trim();
+        if (!raw) { toast('데이터를 붙여넣어 주세요.', 'er'); return; }
+
+        const lines = raw.split(/\r?\n/).filter(l => l.trim());
+        if (lines.length < 2) { toast('데이터가 너무 적습니다. (최소 헤더+1행)', 'er'); return; }
+
+        // 첫 줄 헤더 건너뛰고 파싱
+        const rows = [];
+        for (let i = 1; i < lines.length; i++) {
+            const cols = lines[i].split('\t');
+            // 최소 4열(품목)은 있어야 의미있는 행
+            if (cols.length < 4 || !cols[1]) continue;
+            rows.push(cols);
+        }
+
+        if (!rows.length) { toast('유효한 데이터 행이 없습니다.', 'er'); return; }
+
+        db = rows;
+        isFixMode = true;
+        updateModeBadge();
+
+        // 품목 드롭다운 갱신
+        const prods = [...new Set(db.map(x => x[3]))].filter(x => x && x !== '-');
+        const ps = document.getElementById('pSelect');
+        ps.innerHTML = '<option value="">품목(Product) 선택</option>';
+        prods.forEach(p => ps.innerHTML += `<option value="${p}">${p}</option>`);
+
+        // 조회 영역 초기화
+        document.getElementById('displayArea').innerHTML =
+            '<div id="empty-msg" style="text-align:center;padding:55px;color:#ccc;font-size:.9rem">품목과 업체를 선택하면 상세 정보가 나타납니다.</div>';
+        document.getElementById('rc').style.display = 'none';
+        document.getElementById('cSelect').disabled = true;
+        document.getElementById('rSelect').disabled = true;
+
+        // 미리보기
+        const prev = document.getElementById('fix-preview');
+        prev.style.display = 'block';
+        prev.innerHTML = `✅ <strong>${rows.length}건</strong> 로드 완료 — 품목 ${prods.length}종`;
+
+        toast(`✅ 픽스모드 로드 완료 — ${rows.length}건`, 'ok', 4000);
+        closeFixModal();
+    }
+
+    function clearFixMode() {
+        isFixMode = false;
+        db = [];
+        updateModeBadge();
+        document.getElementById('fix-input').value = '';
+        document.getElementById('fix-preview').style.display = 'none';
+        closeFixModal();
+        init(); // 온라인 재연결 시도
+        toast('🔄 온라인 모드로 복귀합니다...', 'inf');
+    }
+
+    // 줄끝까지만 추출 — 다중 키 폴백 지원
+    function xf(text, ...keys) {
+        for (const key of keys) {
+            const esc = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const m = text.match(new RegExp(esc + '[^:\\r\\n]*:\\s*([^\\r\\n]+)', 'i'));
+            if (m) return m[1].trim();
+        }
+        return '-';
     }
 
     function pillHtml(s) {
@@ -408,23 +554,35 @@ some technical issues that occurred earlier in January."></textarea>
         const raw = document.getElementById('icis-input').value.trim();
         if (!raw) { toast('텍스트를 붙여넣어 주세요.','er'); return; }
 
-        const company  = xf(raw,'Name');
-        const location = xf(raw,'Location');
-        const product  = xf(raw,'Product');
-        const capa     = xf(raw,'Capacity');
-        const start    = xf(raw,'Event start');
-        const finish   = xf(raw,'Event finish');
-        const reason   = xf(raw,'Reason');
-        const comment  = xf(raw,'Comments');
+        // 다중 키 폴백으로 추출
+        const company  = xf(raw, 'Name', 'Owner', 'Producer');
+        const location = xf(raw, 'Location', 'Plant location');
+        const product  = xf(raw, 'Product', 'Commodity', 'Products');
+        const capa     = xf(raw, 'Capacity', 'Capacity (tonnes/year)', 'Capacity (mt/year)');
+        const start    = xf(raw, 'Event start', 'Start', 'Start date');
+        const finish   = xf(raw, 'Event finish', 'Finish', 'End date', 'Expected restart');
+        const reason   = xf(raw, 'Reason', 'Type', 'Cause');
+        const comment  = xf(raw, 'Comments', 'Notes', 'Note', 'Comment');
+
         const lo = raw.toLowerCase();
-        const status = lo.includes('shutdown')?'Shutdown':lo.includes('run cut')?'Run Cut':lo.includes('restart')?'Restart':'Maintenance';
-        const period = (start!=='-'||finish!=='-')?`${start} ~ ${finish}`:'-';
+        const status = lo.includes('shutdown') ? 'Shutdown'
+                     : lo.includes('run cut')  ? 'Run Cut'
+                     : lo.includes('restart')  ? 'Restart'
+                     : lo.includes('no turnaround') ? 'Maintenance'
+                     : 'Maintenance';
+
+        const period = (start!=='-'||finish!=='-') ? `${start} ~ ${finish}` : '-';
         const capaOk = capa !== '-';
         const allOk  = [company,location,product,capa].every(v=>v!=='-');
 
-        // 기사 발행 날짜 추출: "16-Feb-26 11:10" 또는 "14-Feb-26 00:48" 형식
-        const dateMatch = raw.match(/(\d{1,2}-(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-\d{2})\s+(\d{2}:\d{2})/i);
-        const articleDate = dateMatch ? `${dateMatch[1]} ${dateMatch[2]}` : '-';
+        // 날짜 추출: 두 가지 포맷 모두 지원
+        // 형식1: "16-Feb-26 11:10"
+        const fmt1 = raw.match(/(\d{1,2}-(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)-\d{2})\s+(\d{2}:\d{2})/i);
+        // 형식2: "2026-02-10 15:58:29" 또는 "2026-02-10 15:58"
+        const fmt2 = raw.match(/(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})/);
+        const articleDate = fmt1 ? `${fmt1[1]} ${fmt1[2]}`
+                          : fmt2 ? `${fmt2[1]} ${fmt2[2]}`
+                          : '-';
 
         parsed = {company,location,product,capa,status,period,start,finish,reason,comment,articleDate,raw};
 
@@ -535,8 +693,15 @@ some technical issues that occurred earlier in January."></textarea>
     }
 
     // ESC / 배경 클릭으로 닫기
-    document.addEventListener('keydown', e => { if(e.key==='Escape') closeModal(); });
-    document.getElementById('overlay').addEventListener('click', e => { if(e.target===document.getElementById('overlay')) closeModal(); });
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') { closeModal(); closeFixModal(); }
+    });
+    document.getElementById('overlay').addEventListener('click', e => {
+        if (e.target === document.getElementById('overlay')) closeModal();
+    });
+    document.getElementById('fix-overlay').addEventListener('click', e => {
+        if (e.target === document.getElementById('fix-overlay')) closeFixModal();
+    });
 
     init();
 </script>
