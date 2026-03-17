@@ -44,7 +44,9 @@
 
         .card-top { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:16px; }
         .card-company { font-size:1.05rem; font-weight:900; color:var(--primary); }
-        .card-date    { font-size:.65rem; color:#bbb; margin-top:3px; }
+        .card-headline { font-size:.8rem; font-weight:800; color:#34495e; margin-top:4px; line-height:1.45; }
+        .card-headline .headline-percent { color:#d35400; font-weight:900; }
+        .card-date    { font-size:.65rem; color:#bbb; margin-top:5px; }
         .sbadge { display:inline-block; padding:5px 13px; border-radius:20px; font-weight:800; font-size:.75rem; flex-shrink:0; }
         .sb-sd { background:#ffe3e3; color:#c0392b; }
         .sb-rc { background:#fff4e6; color:#d35400; }
@@ -404,6 +406,40 @@ some technical issues that occurred earlier in January."></textarea>
              : 'mn';
     }
 
+    // ── 카드 제목 추출 / 강조 ──
+    function extractHeadline(raw) {
+        if (!raw) return '-';
+        const text = String(raw).replace(/\r/g, '').trim();
+        if (!text) return '-';
+
+        const lines = text.split('\n').map(v => v.trim()).filter(Boolean);
+        if (!lines.length) return '-';
+
+        let title = lines[0].replace(/^Plant status:\s*/i, '').trim();
+
+        // 첫 줄이 메타데이터(Name:, Location:)인 경우 제목 미보유로 간주
+        if (/^(Name|Owner|Producer|Location|Plant location|Product|Commodity|Products|Capacity|Event start|Event finish|Reason|Comments?)\s*:/i.test(title)) {
+            return '-';
+        }
+
+        return title || '-';
+    }
+
+    function escapeHtml(v) {
+        return String(v)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function formatHeadline(raw) {
+        const title = extractHeadline(raw);
+        if (!title || title === '-') return '-';
+        return escapeHtml(title).replace(/(\b\d{1,3}%\b)/g, '<span class="headline-percent">$1</span>');
+    }
+
     // ── 필터 select 변경 시 렌더 ──
     function render() {
         const p = document.getElementById('pSelect').value;
@@ -442,21 +478,23 @@ some technical issues that occurred earlier in January."></textarea>
         currentRows = rows; // Edit 모달에서 참조
 
         area.innerHTML = rows.map((item, idx) => {
-            const cls     = sc(item[5] || '');
+            const cls      = sc(item[5] || '');
             // A열(index 0) = 기사 발행일 — 날짜+시간 모두 표시
-            const date    = item[0]
+            const date     = item[0]
                 ? new Date(item[0]).toLocaleString('ko-KR', {
                     year:'numeric', month:'2-digit', day:'2-digit',
                     hour:'2-digit', minute:'2-digit'
                   })
                 : '-';
-            const capa    = item[4] && item[4] !== '-' ? item[4] : null;
-            const comment = item[8] && item[8] !== '-' ? item[8] : null;
+            const capa     = item[4] && item[4] !== '-' ? item[4] : null;
+            const comment  = item[8] && item[8] !== '-' ? item[8] : null;
+            const headline = formatHeadline(item[10]);
             return `
             <div class="info-card card-${cls}" id="card-${idx}">
                 <div class="card-top">
                     <div>
                         <div class="card-company">${item[1]||'-'}</div>
+                        <div class="card-headline">${headline}</div>
                         <div class="card-date">기사일: ${date}</div>
                     </div>
                     <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
@@ -802,7 +840,7 @@ some technical issues that occurred earlier in January."></textarea>
                         date:    editTarget.originalDate,
                         company: editTarget.originalCompany
                     },
-                    data: { date: articleDate, company, location, product, capa, status, period, reason, comment }
+                    data: { date: articleDate, company, location, product, capa, status, period, reason, comment, raw: editTarget.rowData[10] || '' }
                 })
             });
             const r = await res.json();
