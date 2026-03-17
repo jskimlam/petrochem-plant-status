@@ -50,6 +50,12 @@
         .sum-chip.rs { background:#e8f0fe; color:#2471a3; }
         .sum-chip.mn { background:#e8f8f0; color:#1e8449; }
         .summary-empty { color:#94a3b8; font-size:.73rem; font-weight:700; }
+        .summary-status-list { display:grid; gap:10px; }
+        .status-row { display:grid; grid-template-columns:110px 1fr; gap:12px; align-items:start; padding-top:8px; border-top:1px dashed #dbe2ea; }
+        .status-row:first-child { border-top:none; padding-top:0; }
+        .status-name { font-size:.75rem; font-weight:900; color:#475569; padding-top:6px; }
+        .chip-wrap { display:flex; flex-wrap:wrap; gap:8px; }
+        @media (max-width: 768px) { .status-row { grid-template-columns:1fr; gap:6px; } }
 
         /* ── 아카이브 카드 ── */
         .info-card { background:white; border-radius:14px; padding:26px 28px; box-shadow:0 6px 22px rgba(0,0,0,.07); margin-bottom:16px; border-left:5px solid #dee2e6; }
@@ -460,6 +466,87 @@ some technical issues that occurred earlier in January."></textarea>
         const title = extractHeadline(raw);
         if (!title || title === '-') return '-';
         return escapeHtml(title).replace(/(\b\d{1,3}%\b)/g, '<span class="headline-percent">$1</span>');
+    }
+
+
+
+    // ── 상단 요약 보드 렌더 ──
+    function renderSummaryBoard(rows, product) {
+        const board = document.getElementById('summaryBoard');
+        const grid = document.getElementById('summaryGrid');
+        if (!board || !grid) return;
+
+        if (!rows || !rows.length) {
+            board.style.display = 'none';
+            grid.innerHTML = '';
+            return;
+        }
+
+        const uniq = arr => [...new Set(arr.filter(Boolean))];
+        const companies = uniq(rows.map(x => (x[1] || '').trim()));
+
+        const normalizeStatus = (v) => {
+            const s = String(v || '').trim().toLowerCase();
+            if (!s) return '기타';
+            if (s.includes('shutdown') || s.includes('outage') || s.includes('offline') || s.includes('stop')) return 'Shutdown';
+            if (s.includes('run cut') || s.includes('cut') || s.includes('reduced') || s.includes('reduction') || s.includes('lower') || s.includes('curtail')) return 'Run Cut';
+            if (s.includes('maint')) return 'Maintenance';
+            if (s.includes('restart') || s.includes('resume') || s.includes('startup') || s.includes('start-up')) return 'Restart';
+            return v || '기타';
+        };
+
+        const byStatus = {};
+        rows.forEach(row => {
+            const label = normalizeStatus(row[5]);
+            const company = (row[1] || '').trim();
+            if (!company) return;
+            if (!byStatus[label]) byStatus[label] = [];
+            byStatus[label].push(company);
+        });
+
+        const statusOrder = ['Shutdown', 'Run Cut', 'Maintenance', 'Restart'];
+        const renderTags = (names) => {
+            const list = uniq(names);
+            if (!list.length) return '<div class="summary-empty">없음</div>';
+            return list.map(name => `<span class="chip">${escapeHtml(name)}</span>`).join('');
+        };
+
+        let html = `
+            <div class="summary-box">
+                <div class="summary-title">현재 품목 업체명 <span class="mini">${escapeHtml(product || '-')} / ${companies.length}개 업체</span></div>
+                <div class="chip-wrap">${renderTags(companies)}</div>
+            </div>
+            <div class="summary-box">
+                <div class="summary-title">상태별 업체명 <span class="mini">현재 필터 결과 기준</span></div>
+                <div class="summary-status-list">
+        `;
+
+        statusOrder.forEach(label => {
+            html += `
+                <div class="status-row">
+                    <div class="status-name">${label}</div>
+                    <div class="chip-wrap">${renderTags(byStatus[label] || [])}</div>
+                </div>
+            `;
+        });
+
+        const extraLabels = Object.keys(byStatus).filter(k => !statusOrder.includes(k));
+        extraLabels.forEach(label => {
+            html += `
+                <div class="status-row">
+                    <div class="status-name">${escapeHtml(label)}</div>
+                    <div class="chip-wrap">${renderTags(byStatus[label] || [])}</div>
+                </div>
+            `;
+        });
+
+        html += `
+                </div>
+            </div>
+        `;
+
+        grid.innerHTML = html;
+        board.style.display = 'block';
     }
 
     // ── 필터 select 변경 시 렌더 ──
