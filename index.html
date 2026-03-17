@@ -35,6 +35,22 @@
         .result-count { font-size:.75rem; color:#999; margin-bottom:12px; font-weight:600; }
         .result-count span { color:var(--accent); font-weight:900; }
 
+
+        /* ── 상단 요약 바 ── */
+        .summary-board { display:none; background:white; border-radius:14px; padding:18px 20px; box-shadow:0 6px 22px rgba(0,0,0,.07); margin-bottom:14px; }
+        .summary-grid { display:grid; grid-template-columns:1fr; gap:14px; }
+        .summary-title { font-size:.76rem; font-weight:900; color:var(--primary); margin-bottom:8px; display:flex; align-items:center; gap:8px; }
+        .summary-title .mini { font-size:.65rem; color:#94a3b8; font-weight:800; }
+        .summary-box { background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:12px 14px; }
+        .chip-wrap { display:flex; flex-wrap:wrap; gap:7px; }
+        .sum-chip { display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border-radius:999px; background:#eef2f7; color:#334155; font-size:.72rem; font-weight:800; }
+        .sum-chip .cnt { font-size:.65rem; color:#64748b; font-weight:900; }
+        .sum-chip.sd { background:#ffe3e3; color:#c0392b; }
+        .sum-chip.rc { background:#fff4e6; color:#d35400; }
+        .sum-chip.rs { background:#e8f0fe; color:#2471a3; }
+        .sum-chip.mn { background:#e8f8f0; color:#1e8449; }
+        .summary-empty { color:#94a3b8; font-size:.73rem; font-weight:700; }
+
         /* ── 아카이브 카드 ── */
         .info-card { background:white; border-radius:14px; padding:26px 28px; box-shadow:0 6px 22px rgba(0,0,0,.07); margin-bottom:16px; border-left:5px solid #dee2e6; }
         .card-sd { border-left-color:var(--red); }
@@ -305,6 +321,9 @@ some technical issues that occurred earlier in January."></textarea>
         데이터 불러오는 중...
     </div>
     <div class="result-count" id="rc" style="display:none"></div>
+    <div class="summary-board" id="summaryBoard">
+        <div class="summary-grid" id="summaryGrid"></div>
+    </div>
     <div id="displayArea">
         <div id="empty-msg">품목과 업체를 선택하면 상세 정보가 나타납니다.</div>
     </div>
@@ -333,6 +352,7 @@ some technical issues that occurred earlier in January."></textarea>
         document.getElementById('loading').style.display = 'block';
         document.getElementById('displayArea').innerHTML = '';
         document.getElementById('rc').style.display = 'none';
+        document.getElementById('summaryBoard').style.display = 'none';
         try {
             // 캐시 방지를 위해 타임스탬프 쿼리 파라미터 추가
             const res  = await fetch(GAS_URL + '?t=' + Date.now());
@@ -377,8 +397,10 @@ some technical issues that occurred earlier in January."></textarea>
         cs.innerHTML = '<option value="">전체 업체 보기</option>';
         rs.innerHTML = '<option value="">전체 사유 보기</option>';
         document.getElementById('rc').style.display = 'none';
+        document.getElementById('summaryBoard').style.display = 'none';
         if (!p) {
             cs.disabled = true; rs.disabled = true;
+            document.getElementById('summaryBoard').style.display = 'none';
             document.getElementById('displayArea').innerHTML =
                 '<div style="text-align:center;padding:55px;color:#ccc;font-size:.9rem">품목을 선택하세요.</div>';
             return;
@@ -466,6 +488,7 @@ some technical issues that occurred earlier in January."></textarea>
         if (!rows.length) {
             area.innerHTML = '<div style="text-align:center;padding:50px;color:#ccc">결과 없음</div>';
             rcEl.style.display = 'none';
+            renderSummaryBoard([], p);
             return;
         }
 
@@ -476,6 +499,7 @@ some technical issues that occurred earlier in January."></textarea>
             : `<span>${p}</span> 전체 — 총 <span>${rows.length}건</span> (기사 최신순)`;
 
         currentRows = rows; // Edit 모달에서 참조
+        renderSummaryBoard(rows, p);
 
         area.innerHTML = rows.map((item, idx) => {
             const cls      = sc(item[5] || '');
