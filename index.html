@@ -497,8 +497,9 @@ some technical issues that occurred earlier in January."></textarea>
 
     function makeCompanyChip(name, statusCls='') {
         const safeName = escapeHtml(name);
+        const safeAttr = escapeHtml(name);
         const cls = ['sum-chip', statusCls, 'chip-jump'].filter(Boolean).join(' ');
-        return `<button type="button" class="${cls}" onclick="jumpToCompanyCard(${JSON.stringify(name)})">${safeName}</button>`;
+        return `<button type="button" class="${cls}" data-company="${safeAttr}" onclick="jumpToCompanyCard(this.dataset.company)">${safeName}</button>`;
     }
 
     function jumpToCompanyCard(company) {
