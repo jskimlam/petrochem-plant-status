@@ -163,6 +163,24 @@
         .sp-rc { background:#fff4e6; color:#d35400; }
         .sp-mn { background:#e8f8f0; color:#1e8449; }
         .sp-rs { background:#e8f0fe; color:#2471a3; }
+
+        /* ── 요약 보드 클릭 이동 / 복귀 ── */
+        .chip-jump { cursor:pointer; border:none; }
+        .chip-jump:hover { transform:translateY(-1px); box-shadow:0 3px 10px rgba(0,0,0,.08); }
+        .info-card.card-focus {
+            box-shadow:0 0 0 3px rgba(21,151,187,.18), 0 10px 28px rgba(0,0,0,.12);
+            transform:translateY(-2px);
+            transition:box-shadow .22s ease, transform .22s ease;
+        }
+        .jump-back-btn {
+            position:fixed; right:22px; bottom:24px; z-index:12000;
+            display:none; align-items:center; gap:8px;
+            background:var(--primary); color:#fff; border:none;
+            border-radius:999px; padding:12px 16px; font-size:.8rem; font-weight:900;
+            box-shadow:0 10px 24px rgba(10,38,71,.24); cursor:pointer;
+        }
+        .jump-back-btn.show { display:inline-flex; }
+        .jump-back-btn:hover { opacity:.92; }
     </style>
 </head>
 <body>
@@ -335,6 +353,7 @@ some technical issues that occurred earlier in January."></textarea>
     </div>
 </div>
 
+<button id="jumpBackBtn" class="jump-back-btn" onclick="returnToPreviousPosition()">↩ 이전 위치로</button>
 <div id="toast"></div>
 
 <script>
@@ -350,6 +369,8 @@ some technical issues that occurred earlier in January."></textarea>
     let authed      = false;    // 관리자 인증 여부 (입력 모달 + Edit 모달 공유)
     let currentRows = [];       // 현재 화면에 표시 중인 행 배열
     let editTarget  = null;     // 수정 대상 행 정보 { rowData, originalDate, originalCompany }
+    let lastScrollY = null;     // 요약 보드에서 카드 이동 전 스크롤 위치
+    let lastFocusedCardId = null;
 
     // ════════════════════════════════════════════════════
     // ── 데이터 조회 (초기화)
@@ -470,6 +491,57 @@ some technical issues that occurred earlier in January."></textarea>
 
 
 
+    function normalizeCompanyName(v) {
+        return String(v || '').trim().toLowerCase();
+    }
+
+    function makeCompanyChip(name, statusCls='') {
+        const safeName = escapeHtml(name);
+        const cls = ['sum-chip', statusCls, 'chip-jump'].filter(Boolean).join(' ');
+        return `<button type="button" class="${cls}" onclick="jumpToCompanyCard(${JSON.stringify(name)})">${safeName}</button>`;
+    }
+
+    function jumpToCompanyCard(company) {
+        const key = normalizeCompanyName(company);
+        if (!key) return;
+
+        const target = Array.from(document.querySelectorAll('.info-card[data-company]')).find(el => normalizeCompanyName(el.dataset.company) === key);
+        if (!target) {
+            toast('해당 업체 카드를 찾지 못했습니다.', 'er');
+            return;
+        }
+
+        lastScrollY = window.scrollY || window.pageYOffset || 0;
+        lastFocusedCardId = target.id || null;
+
+        document.querySelectorAll('.info-card.card-focus').forEach(el => el.classList.remove('card-focus'));
+        target.classList.add('card-focus');
+        setTimeout(() => {
+            target.classList.remove('card-focus');
+        }, 2200);
+
+        target.scrollIntoView({ behavior:'smooth', block:'center' });
+        const backBtn = document.getElementById('jumpBackBtn');
+        if (backBtn) backBtn.classList.add('show');
+    }
+
+    function returnToPreviousPosition() {
+        if (lastScrollY === null) {
+            const board = document.getElementById('summaryBoard');
+            if (board) board.scrollIntoView({ behavior:'smooth', block:'start' });
+            return;
+        }
+        window.scrollTo({ top:lastScrollY, behavior:'smooth' });
+        if (lastFocusedCardId) {
+            const oldCard = document.getElementById(lastFocusedCardId);
+            if (oldCard) oldCard.classList.remove('card-focus');
+        }
+        const backBtn = document.getElementById('jumpBackBtn');
+        if (backBtn) backBtn.classList.remove('show');
+        lastScrollY = null;
+        lastFocusedCardId = null;
+    }
+
     // ── 상단 요약 보드 렌더 ──
     function renderSummaryBoard(rows, product) {
         const board = document.getElementById('summaryBoard');
@@ -505,10 +577,17 @@ some technical issues that occurred earlier in January."></textarea>
         });
 
         const statusOrder = ['Shutdown', 'Run Cut', 'Maintenance', 'Restart'];
-        const renderTags = (names) => {
+        const statusClassMap = {
+            'Shutdown': 'sd',
+            'Run Cut': 'rc',
+            'Maintenance': 'mn',
+            'Restart': 'rs'
+        };
+        const renderTags = (names, statusLabel='') => {
             const list = uniq(names);
             if (!list.length) return '<div class="summary-empty">없음</div>';
-            return list.map(name => `<span class="chip">${escapeHtml(name)}</span>`).join('');
+            const statusCls = statusClassMap[statusLabel] || '';
+            return list.map(name => makeCompanyChip(name, statusCls)).join('');
         };
 
         let html = `
@@ -525,7 +604,7 @@ some technical issues that occurred earlier in January."></textarea>
             html += `
                 <div class="status-row">
                     <div class="status-name">${label}</div>
-                    <div class="chip-wrap">${renderTags(byStatus[label] || [])}</div>
+                    <div class="chip-wrap">${renderTags(byStatus[label] || [], label)}</div>
                 </div>
             `;
         });
@@ -535,7 +614,7 @@ some technical issues that occurred earlier in January."></textarea>
             html += `
                 <div class="status-row">
                     <div class="status-name">${escapeHtml(label)}</div>
-                    <div class="chip-wrap">${renderTags(byStatus[label] || [])}</div>
+                    <div class="chip-wrap">${renderTags(byStatus[label] || [], label)}</div>
                 </div>
             `;
         });
@@ -576,6 +655,10 @@ some technical issues that occurred earlier in January."></textarea>
             area.innerHTML = '<div style="text-align:center;padding:50px;color:#ccc">결과 없음</div>';
             rcEl.style.display = 'none';
             renderSummaryBoard([], p);
+            const jumpBackBtn = document.getElementById('jumpBackBtn');
+            if (jumpBackBtn) jumpBackBtn.classList.remove('show');
+            lastScrollY = null;
+            lastFocusedCardId = null;
             return;
         }
 
@@ -587,6 +670,10 @@ some technical issues that occurred earlier in January."></textarea>
 
         currentRows = rows; // Edit 모달에서 참조
         renderSummaryBoard(rows, p);
+        const jumpBackBtn = document.getElementById('jumpBackBtn');
+        if (jumpBackBtn) jumpBackBtn.classList.remove('show');
+        lastScrollY = null;
+        lastFocusedCardId = null;
 
         area.innerHTML = rows.map((item, idx) => {
             const cls      = sc(item[5] || '');
@@ -601,7 +688,7 @@ some technical issues that occurred earlier in January."></textarea>
             const comment  = item[8] && item[8] !== '-' ? item[8] : null;
             const headline = formatHeadline(item[10]);
             return `
-            <div class="info-card card-${cls}" id="card-${idx}">
+            <div class="info-card card-${cls}" id="card-${idx}" data-company="${esc(item[1]||'-')}">
                 <div class="card-top">
                     <div>
                         <div class="card-company">${item[1]||'-'}</div>
