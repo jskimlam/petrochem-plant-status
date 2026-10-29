@@ -182,6 +182,9 @@
         .jump-back-btn.show { display:inline-flex; }
         .jump-back-btn:hover { opacity:.92; }
     </style>
+<style>
+.view-tabs{max-width:1400px;margin:22px auto 0;padding:0 18px;display:flex;gap:8px}.view-tab{border:1px solid #d6e0db;border-radius:10px;padding:12px 22px;background:white;color:#355049;font-weight:700}.view-tab.active{background:#125d46;color:white}.loss-panel{max-width:1500px;margin:24px auto;padding:0 18px}.loss-panel[hidden],#archivePanel[hidden]{display:none!important}.loss-heading{display:flex;justify-content:space-between;gap:15px;align-items:center}.loss-heading h2{font-size:24px;font-weight:800;margin:0}.loss-sub{color:#698078;font-size:13px;margin:9px 0 18px}.loss-controls{display:flex;flex-wrap:wrap;gap:10px;margin:18px 0}.loss-controls label{font-size:12px;color:#50645d}.loss-controls select{display:block;padding:8px;border:1px solid #d5e1da;border-radius:7px;background:white}.loss-scroll{overflow:auto;max-height:68vh;border:1px solid #ccdcd3;border-radius:12px;background:white}.loss-table{border-collapse:separate;border-spacing:0;min-width:100%;font-size:12px;white-space:nowrap}.loss-table th,.loss-table td{border-right:1px solid #dce7e0;border-bottom:1px solid #dce7e0;padding:10px;text-align:center;min-width:75px}.loss-table thead th{background:#eff5f1;color:#284d3c}.loss-table small{display:block;font-size:10px;font-weight:400;color:#698078}.loss-table .lp{position:sticky;left:0;min-width:78px;width:78px;background:#fafcfb;z-index:2}.loss-table .lc{position:sticky;left:78px;min-width:245px;max-width:245px;text-align:left;white-space:normal;background:#fafcfb;z-index:2}.loss-table .lk{position:sticky;left:323px;min-width:95px;background:#fafcfb;z-index:2}.loss-table .loss-value{background:#c6efd4;padding:0}.loss-value button{border:0;background:transparent;width:100%;height:100%;padding:12px 8px;color:#155b37;font-weight:700}.loss-value button:hover{background:#a7e2bc}.loss-table tfoot{font-weight:800;background:#e7f0eb}.loss-stats{background:#eaf4ee;padding:14px;border-radius:9px;color:#22583e;margin-bottom:14px}.loss-rules{font-size:12px;color:#687c71;line-height:1.8;margin:15px 0}.review-row{padding:9px 0;border-bottom:1px solid #ddd}.review-row small{display:block;color:#75847c}#lossReview{font-size:12px;margin:20px 0}#lossDialog{width:min(760px,94vw);max-height:85vh;border:1px solid #bed5c5;border-radius:16px;padding:25px}#lossDialog::backdrop{background:#122c2366}#lossDialog pre{white-space:pre-wrap;font-size:12px}#lossDialog article{padding:16px 0;border-bottom:1px solid #ddd}#lossDetailTitle{font-size:17px}.loss-close{float:right;border:0;background:#edf4ef;padding:7px 14px;border-radius:8px}@media(max-width:700px){.loss-table .lc{min-width:160px;max-width:160px}.loss-table .lk{position:static}.loss-heading h2{font-size:20px}}
+</style>
 </head>
 <body>
 
@@ -316,7 +319,12 @@ some technical issues that occurred earlier in January."></textarea>
 <!-- ══════════════════════════════
      조회 영역
      ══════════════════════════════ -->
-<div class="page-wrap">
+<nav class="view-tabs" aria-label="보기 선택"><button class="view-tab active" data-view="archive" onclick="lossTab('archive')">기사 조회</button><button class="view-tab" data-view="loss" onclick="lossTab('loss')">주간 생산손실</button></nav>
+<section id="lossPanel" class="loss-panel" hidden><div class="loss-heading"><h2>주간 생산손실</h2><button class="btn-refresh" onclick="init()">↻ 최신 기사 반영</button></div><p class="loss-sub">SM · AN(ACN) · BD · MMA · BPA — 정지, 가동률 변경, 재가동을 주차별로 반영합니다.</p>
+<div class="loss-controls"><label>연도<select id="lossYear" onchange="lossRender()"><option>2024</option><option>2025</option><option>2026</option><option>2027</option><option>2028</option><option>2029</option><option>2030</option></select></label><label>시작 월<select id="lossMonth" onchange="lossRender()"><option value="0">1월</option><option value="1">2월</option><option value="2">3월</option><option value="3">4월</option><option value="4">5월</option><option value="5">6월</option><option value="6">7월</option><option value="7">8월</option><option value="8">9월</option><option value="9">10월</option><option value="10">11월</option><option value="11">12월</option></select></label><label>표시 기간<select id="lossSpan" onchange="lossRender()"><option value="3">3개월</option><option value="6">6개월</option><option value="12">12개월</option></select></label><label>품목<select id="lossProduct" onchange="lossRender()"><option value="">5대 품목 전체</option><option value="SM">SM</option><option value="AN">AN(ACN)</option><option value="BD">BD</option><option value="MMA">MMA</option><option value="BPA">BPA</option></select></label></div>
+<div id="lossStats" class="loss-stats">데이터 불러오는 중…</div><div class="loss-scroll"><table id="lossTable" class="loss-table"></table></div><p id="lossEmpty" hidden>선택 기간에 계산 가능한 생산손실이 없습니다.</p><div class="loss-rules">단위: 케파 톤/년 · loss 톤. 초/중/말은 5/15/25일, 상·하순(H1/H2)은 8/23일, 월만 있으면 15일을 적용합니다. 재가동일은 정지 기간에서 제외하며, 종료일 없는 건은 기준일까지 계산합니다. 1W=1–7일, 2W=8–14일, 3W=15–21일, 4W=22–28일, 5W=29일–말일. 연간 케파 100% 대비 손실이며, 숫자를 누르면 적용 기사를 볼 수 있습니다.<br><span id="lossCoverage"></span><br>화면을 보고 있는 동안 5분마다 새로 불러오며, 기사 저장·수정 후에도 다시 계산합니다.</div><details id="lossReview"></details></section>
+<dialog id="lossDialog"><button class="loss-close" onclick="document.getElementById('lossDialog').close()">닫기</button><h3 id="lossDetailTitle"></h3><div id="lossDetailBody"></div></dialog>
+<div class="page-wrap" id="archivePanel">
     <div class="filter-card">
         <div class="row g-2 align-items-center">
             <div class="col-md-4">
@@ -384,7 +392,8 @@ some technical issues that occurred earlier in January."></textarea>
             // 캐시 방지를 위해 타임스탬프 쿼리 파라미터 추가
             const res  = await fetch(GAS_URL + '?t=' + Date.now());
             const data = await res.json();
-            db = data.slice(1); // 첫 행(헤더) 제외
+            db = data.slice(1);
+            lossRender(); // 첫 행(헤더) 제외
 
             // 품목(D열=index 3) 목록 생성
             const prods = [...new Set(db.map(x => x[3]))].filter(x => x && x !== '-');
@@ -1093,5 +1102,113 @@ some technical issues that occurred earlier in January."></textarea>
     init();
 </script>
 
+<script>
+(function(root){
+'use strict';
+const DAY=86400000, products=['SM','AN','BD','MMA','BPA'];
+const months=['january','february','march','april','may','june','july','august','september','october','november','december'];
+const day=(y,m,d)=>Date.UTC(y,m,d)/DAY;
+const iso=n=>new Date(n*DAY).toISOString().slice(0,10);
+function date(s,ref,start){
+ s=String(s||'').toLowerCase().replace(/,/g,'');
+ s=s.replace(/\b(jan|feb|mar|apr|jun|jul|aug|sep|sept|oct|nov|dec)\b/g,x=>months.find(m=>m.startsWith(x.slice(0,3))));
+ if(/\b(?:days?|weeks?|months?)\b/.test(s)&&/\d/.test(s)&&!months.some(m=>new RegExp('\\b'+m+'\\b').test(s.replace(/may last/,'duration'))))return null;
+ if(!s||/unknown|tbc|indefinite|not specified|n\/a/.test(s))return null;
+ let m=s.match(/(20\d{2})-(\d{2})-(\d{2})/);if(m)return day(+m[1],+m[2]-1,+m[3]);
+ let year=+(s.match(/20\d{2}/)||[])[0]||new Date(ref*DAY).getUTCFullYear();
+ let mi=months.findIndex(x=>s.includes(x)); if(mi<0){const q=s.match(/q([1-4])/);if(q)return day(year,(+q[1]-1)*3+1,15);return null;}
+ let d=15;const before=s.slice(0,s.indexOf(months[mi]));
+ const nums=before.match(/\b(\d{1,2})(?:\s*[-–]\s*(\d{1,2}))?\s*$/);
+ if(nums)d=nums[2]?Math.round((+nums[1]+ +nums[2])/2):+nums[1];
+ else if(/h1|first half/.test(s))d=8;else if(/h2|second half/.test(s))d=23;
+ else if(/early|beginning|first week/.test(s))d=5;else if(/late|end/.test(s))d=25;
+ if(/early.*mid/.test(s))d=10;
+ let result=day(year,mi,d);
+ if(start!=null&&result<start&&!/20\d{2}/.test(s))result=day(year+1,mi,d);
+ return result;
+}
+function product(s){s=String(s).toLowerCase();if(/methyl methacrylate|\bmma\b/.test(s))return'MMA';if(/bisphenol|\bbpa\b/.test(s))return'BPA';if(/styrene monomer|\bsm\b/.test(s))return'SM';if(/acrylonitrile|\bacn\b|\ban\b/.test(s)&&!/styrene|\babs\b/.test(s))return'AN';if(/butadiene|\bbd\b/.test(s)&&!/polybutadiene|rubber|styrene/.test(s))return'BD';return null;}
+function field(raw,name){return(raw.match(new RegExp('^'+name+'[^:\\n]*:\\s*([^\\n]+)','im'))||[])[1]||'';}
+function publication(raw,fallback){let m=raw.match(/(\d{1,2})-([A-Za-z]{3})-(\d{2,4})/);if(m)return day(+m[3]<100?2000+ +m[3]:+m[3],months.findIndex(x=>x.startsWith(m[2].toLowerCase())),+m[1]);return date(String(fallback).slice(0,10),day(2026,0,1));}
+function capacity(value){let s=String(value).replace(/,/g,'');if(/^\d+(?:\.\d+)?$/.test(s.trim()))return+s;let matches=[...s.matchAll(/\b(\d{4,7})\b/g)];if(matches.length===1)return+matches[0][1];if(matches.length>1&&/\+/.test(s))return matches.reduce((a,m)=>a+ +m[1],0);return null;}
+function build(rows,asOf){const as=date(asOf,day(2026,0,1)), groups=new Map(),review=[],seen=new Set();let count=0;
+ rows.forEach((r,index)=>{const p=product(r[3]);if(!p)return;count++;let raw=String(r[10]||''),title=raw.split('\n').find(x=>/plant status/i.test(x))||raw.split('\n')[0],pub=publication(raw,r[0]);const cap=capacity(r[4]);
+ const issue=reason=>review.push({p,company:r[1],title,reason,index});
+ if(!cap||!pub){issue('케파 또는 기사일 확인');return;}
+ const signature=[p,r[1],cap,title.replace(/\s/g,''),pub].join('|');if(seen.has(signature))return;seen.add(signature);
+ let period=String(r[6]||'').split(/\s*~\s*/),startText=period[0]||field(raw,'Event start'),endText=period[1]||field(raw,'Event (?:finish|end)');
+ let start=date(startText,pub),end=date(endText,pub,start);
+ if(start==null){issue('가동 변동 시작일 확인');return;}
+ if(end==null){let dur=endText.match(/(\d+)(?:\s*[-–]\s*(\d+))?\s*(days?|weeks?|months?)/i);if(dur)end=start+Math.round((+dur[1]+ +(dur[2]||dur[1]))/2)*(/month/i.test(dur[3])?30:/week/i.test(dur[3])?7:1);}
+ const comment=field(raw,'Comments?'),text=title+' '+comment;
+ let rates=[...title.matchAll(/(\d{1,3})(?:\s*[-–]\s*(\d{1,3}))?\s*%/g)];if(!rates.length)rates=[...comment.matchAll(/(?:at|to|rate(?:s)?(?:\s+of)?)\s*(?:around\s*|about\s*)?(\d{1,3})(?:\s*[-–]\s*(\d{1,3}))?\s*%/gi)];
+ const rate=rates.length?(+rates[0][1]+ +(rates[0][2]||rates[0][1]))/200:null;
+ const restart=/restart|resume/i.test(title),full=/full (?:rate|capacity|run)|running at full|100%|back to normal/i.test(title);
+ const shut=/shut|offline|turnaround|maintenance|overhaul|keep.*down|pauses|servicing|to maintain/i.test(title);
+ let loss=null;if(restart||shut)loss=1;else if(full)loss=0;else if(rate!=null)loss=1-rate;
+ // Full-rate/cut-rate reports are operating-rate events even when the legacy status says Maintenance.
+ if(!restart&&rate!=null)loss=1-rate;
+ if(loss==null||loss<0||loss>1){issue('정지 여부 또는 가동률 확인');return;}
+ if(restart&&end==null){issue('재가동일 확인');return;}
+ if(end!=null&&end<=start){issue('시작·종료일 순서 확인');return;}
+ const company=String(r[1]).toLowerCase().replace(/petrochemical|petrochemicals|\bpc\b|corporation|corp\.?|co\.?|ltd\.?/g,'').replace(/[^a-z0-9]/g,'');
+ const loc=String(r[2]).toLowerCase().split(',')[0].replace(/[^a-z0-9]/g,'');
+ // Capacity separates independent lines. Known Hainan naming variants describe the same BD unit.
+ const key=[p,company,/hainan/.test(company)?'hainan':loc,cap].join('|');
+ if(!groups.has(key))groups.set(key,{key,p,company:r[1],location:r[2],cap,events:[]});
+ groups.get(key).events.push({start,end,loss,pub,title,raw,index,restart,post:restart?rate:null,source:(String(r[8]).match(/https:\/\/subscriber\.icis\.com\/[^\s]+/)||[])[0]||'',startText,endText});
+ });
+ const plants=[];for(const g of groups.values()){
+ g.events.sort((a,b)=>a.pub-b.pub||a.index-b.index);let episodes=[];
+ for(const e of g.events){
+ // A later report on an overlapping outage replaces its entire earlier schedule, including its old tail.
+ let overlaps=episodes.filter(x=>e.loss===1&&x.loss===1&&e.start<(x.end??as+1)&&x.start<(e.end??as+1));
+ if(overlaps.length)episodes=episodes.filter(x=>!overlaps.includes(x));
+ episodes.push(e);
+ }
+ g.episodes=episodes;g.latest=Math.max(...g.events.map(e=>e.pub));plants.push(g);
+ }
+ plants.sort((a,b)=>products.indexOf(a.p)-products.indexOf(b.p)||String(a.company).localeCompare(String(b.company))||a.cap-b.cap);
+ return{plants,review,count,unique:seen.size,asOf:as};
+}
+function cell(g,start,end,asOf){let total=0,used=new Map();for(let d=start;d<end;d++){
+ let active=g.episodes.filter(e=>d>=e.start&&d<(e.end??asOf+1));
+ // A restart closes the old outage; a stated post-restart rate continues until superseded.
+ for(const e of g.episodes)if(e.restart&&d>=e.end&&d<=asOf)active.push({...e,start:e.end,loss:e.post==null?0:1-e.post});
+ active.sort((a,b)=>b.pub-a.pub||b.index-a.index);const e=active[0];if(!e||!e.loss)continue;
+ const y=new Date(d*DAY).getUTCFullYear(),n=g.cap/(day(y+1,0,1)-day(y,0,1))*e.loss;total+=n;
+ if(!used.has(e.index))used.set(e.index,{event:e,days:0,tons:0});used.get(e.index).days++;used.get(e.index).tons+=n;
+ }return{total,evidence:[...used.values()]};}
+ const api={build,cell,date,day,iso,products,capacity};if(typeof module!=='undefined')module.exports=api;root.LossEngine=api;
+})(typeof window!=='undefined'?window:globalThis);
+
+const lossToday=()=>new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Seoul'}).format(new Date());
+let lossModel=null,lossCells=[];
+function lossTab(which){document.getElementById('archivePanel').hidden=which!=='archive';document.getElementById('lossPanel').hidden=which!=='loss';document.querySelectorAll('.view-tab').forEach(b=>b.classList.toggle('active',b.dataset.view===which));if(which==='loss')lossRender();}
+function lossRender(){
+ const E=LossEngine,esc=escapeHtml,year=+document.getElementById('lossYear').value,first=+document.getElementById('lossMonth').value,span=+document.getElementById('lossSpan').value,pick=document.getElementById('lossProduct').value;
+ lossModel=E.build(db,lossToday());lossCells=[];
+ let bins=[],months=[];for(let m=first;m<Math.min(12,first+span);m++){let count=0;for(let d=1;d<=new Date(year,m+1,0).getDate();d+=7){bins.push({start:E.day(year,m,d),end:Math.min(E.day(year,m,d+7),E.day(year,m+1,1)),week:++count});}months.push({m,count});}
+ let plants=lossModel.plants.filter(g=>!pick||g.p===pick),totals=bins.map(()=>0),shown=0;
+ let body='';for(const g of plants){const values=bins.map(b=>E.cell(g,b.start,b.end,lossModel.asOf));if(!values.some(v=>v.total>0))continue;shown++;
+ body+='<tr><th class="lp">'+g.p.replace('AN','AN(ACN)')+'</th><th class="lc">'+esc(g.company)+'<small>'+esc(g.location)+'</small></th><td class="lk">'+g.cap.toLocaleString()+'</td>';
+ values.forEach((v,i)=>{totals[i]+=v.total;if(v.total>0){const id=lossCells.push({g,b:bins[i],v})-1;body+='<td class="loss-value"><button onclick="lossDetail('+id+')" aria-label="'+esc(g.company)+' '+E.iso(bins[i].start)+' 손실 상세">'+Math.round(v.total).toLocaleString()+'</button></td>';}else body+='<td></td>';});body+='</tr>';
+ }
+ document.getElementById('lossStats').textContent='기준일 '+lossToday()+' · 대상 기사 '+lossModel.count+'건 · 표시 설비 '+shown+'개 · 표시 기간 loss '+Math.round(totals.reduce((a,b)=>a+b,0)).toLocaleString()+'톤';
+ document.getElementById('lossTable').innerHTML='<thead><tr><th rowspan="3" class="lp">품목</th><th rowspan="3" class="lc">업체 / 설비</th><th rowspan="3" class="lk">케파<br><small>톤/년</small></th><th colspan="'+bins.length+'">'+year+'년 · 생산손실 (톤)</th></tr><tr>'+months.map(m=>'<th colspan="'+m.count+'">'+(m.m+1)+'월</th>').join('')+'</tr><tr>'+bins.map(b=>'<th>'+b.week+'W<small>'+E.iso(b.start).slice(8)+'–'+E.iso(b.end-1).slice(8)+'일</small></th>').join('')+'</tr></thead><tbody>'+body+'</tbody><tfoot><tr><th colspan="3">주차별 합계</th>'+totals.map(v=>'<td>'+(v?Math.round(v).toLocaleString():'')+'</td>').join('')+'</tr></tfoot>';
+ document.getElementById('lossEmpty').hidden=shown>0;
+ const review=lossModel.review.filter(r=>!pick||r.p===pick);
+ document.getElementById('lossReview').innerHTML='<summary>계산 제외 · 확인 필요 '+review.length+'건</summary><p>날짜·케파·가동률을 정할 수 없는 기사는 아래에 표시합니다. 빈칸은 정상 가동을 보장하지 않습니다.</p>'+review.map(r=>'<div class="review-row"><b>'+r.p+' · '+esc(r.company)+'</b> — '+esc(r.reason)+'<small>'+esc(r.title)+'</small></div>').join('');
+ const coverage=E.products.map(p=>{const dates=lossModel.plants.filter(g=>g.p===p).map(g=>g.latest);return p+(dates.length?' '+E.iso(Math.max(...dates)):' 없음');}).join(' / ');
+ document.getElementById('lossCoverage').textContent='계산에 사용한 품목별 최신 기사: '+coverage;
+}
+function lossDetail(i){const{g,b,v}=lossCells[i],E=LossEngine;document.getElementById('lossDetailTitle').textContent=g.p+' · '+g.company+' · '+E.iso(b.start)+' ~ '+E.iso(b.end-1);document.getElementById('lossDetailBody').innerHTML=v.evidence.map(({event:e,days,tons})=>'<article><b>'+escapeHtml(e.title)+'</b><p>기사일 '+E.iso(e.pub)+' · 적용 '+E.iso(e.start)+' ~ '+(e.end?E.iso(e.end)+' (종료일 제외)':lossToday())+'</p><p>케파 '+g.cap.toLocaleString()+'톤/년 × 손실률 '+Math.round(e.loss*100)+'% × '+days+'일 ÷ 연간일수 = '+Math.round(tons).toLocaleString()+'톤</p>'+(e.source?'<a target="_blank" rel="noopener" href="'+escapeHtml(e.source)+'">ICIS 원문 보기</a>':'')+'<details><summary>수집 원문</summary><pre>'+escapeHtml(e.raw)+'</pre></details></article>').join('');document.getElementById('lossDialog').showModal();}
+document.getElementById('lossYear').value=new Date().getFullYear();document.getElementById('lossMonth').value=new Date().getMonth();
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&!document.getElementById('lossPanel').hidden)init();});
+setInterval(()=>{if(!document.hidden&&!document.getElementById('lossPanel').hidden)init();},300000);
+
+</script>
 </body>
 </html>
+
+
