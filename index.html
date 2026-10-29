@@ -184,6 +184,7 @@
     </style>
 <style>
 .view-tabs{max-width:1400px;margin:22px auto 0;padding:0 18px;display:flex;gap:8px}.view-tab{border:1px solid #d6e0db;border-radius:10px;padding:12px 22px;background:white;color:#355049;font-weight:700}.view-tab.active{background:#125d46;color:white}.loss-panel{max-width:1500px;margin:24px auto;padding:0 18px}.loss-panel[hidden],#archivePanel[hidden]{display:none!important}.loss-heading{display:flex;justify-content:space-between;gap:15px;align-items:center}.loss-heading h2{font-size:24px;font-weight:800;margin:0}.loss-sub{color:#698078;font-size:13px;margin:9px 0 18px}.loss-controls{display:flex;flex-wrap:wrap;gap:10px;margin:18px 0}.loss-controls label{font-size:12px;color:#50645d}.loss-controls select{display:block;padding:8px;border:1px solid #d5e1da;border-radius:7px;background:white}.loss-scroll{overflow:auto;max-height:68vh;border:1px solid #ccdcd3;border-radius:12px;background:white}.loss-table{border-collapse:separate;border-spacing:0;min-width:100%;font-size:12px;white-space:nowrap}.loss-table th,.loss-table td{border-right:1px solid #dce7e0;border-bottom:1px solid #dce7e0;padding:10px;text-align:center;min-width:75px}.loss-table thead th{background:#eff5f1;color:#284d3c}.loss-table small{display:block;font-size:10px;font-weight:400;color:#698078}.loss-table .lp{position:sticky;left:0;min-width:78px;width:78px;background:#fafcfb;z-index:2}.loss-table .lc{position:sticky;left:78px;min-width:245px;max-width:245px;text-align:left;white-space:normal;background:#fafcfb;z-index:2}.loss-table .lk{position:sticky;left:323px;min-width:95px;background:#fafcfb;z-index:2}.loss-table .loss-value{background:#c6efd4;padding:0}.loss-value button{border:0;background:transparent;width:100%;height:100%;padding:12px 8px;color:#155b37;font-weight:700}.loss-value button:hover{background:#a7e2bc}.loss-table tfoot{font-weight:800;background:#e7f0eb}.loss-stats{background:#eaf4ee;padding:14px;border-radius:9px;color:#22583e;margin-bottom:14px}.loss-rules{font-size:12px;color:#687c71;line-height:1.8;margin:15px 0}.review-row{padding:9px 0;border-bottom:1px solid #ddd}.review-row small{display:block;color:#75847c}#lossReview{font-size:12px;margin:20px 0}#lossDialog{width:min(760px,94vw);max-height:85vh;border:1px solid #bed5c5;border-radius:16px;padding:25px}#lossDialog::backdrop{background:#122c2366}#lossDialog pre{white-space:pre-wrap;font-size:12px}#lossDialog article{padding:16px 0;border-bottom:1px solid #ddd}#lossDetailTitle{font-size:17px}.loss-close{float:right;border:0;background:#edf4ef;padding:7px 14px;border-radius:8px}@media(max-width:700px){.loss-table .lc{min-width:160px;max-width:160px}.loss-table .lk{position:static}.loss-heading h2{font-size:20px}}
+.loss-heading h2{white-space:nowrap}.loss-heading .btn-refresh{width:auto;flex-shrink:0;padding:11px 20px}.loss-table thead{position:sticky;top:0;z-index:4}
 </style>
 </head>
 <body>
@@ -1148,6 +1149,7 @@ function build(rows,asOf){const as=date(asOf,day(2026,0,1)), groups=new Map(),re
  let loss=null;if(restart||shut)loss=1;else if(full)loss=0;else if(rate!=null)loss=1-rate;
  // Full-rate/cut-rate reports are operating-rate events even when the legacy status says Maintenance.
  if(!restart&&rate!=null)loss=1-rate;
+ if(!restart&&/halves? .*run rate/i.test(title))loss=.5;
  if(shut&&/take turns|in turn|alternat/i.test(comment)&&/two.*lines|two.*units/i.test(comment))loss=.5;
  if(loss==null||loss<0||loss>1){issue('정지 여부 또는 가동률 확인');return;}
  if(restart&&end==null){issue('재가동일 확인');return;}
@@ -1163,7 +1165,7 @@ function build(rows,asOf){const as=date(asOf,day(2026,0,1)), groups=new Map(),re
  g.events.sort((a,b)=>a.pub-b.pub||a.index-b.index);let episodes=[];
  for(const e of g.events){
  // A later report on an overlapping outage replaces its entire earlier schedule, including its old tail.
- let overlaps=episodes.filter(x=>e.loss===1&&x.loss===1&&e.start<(x.end??as+1)&&x.start<(e.end??as+1));
+ let overlaps=episodes.filter(x=>e.loss===1&&x.loss===1&&((e.start<(x.end??as+1)&&x.start<(e.end??as+1))||(/postpone|bring.*forward|reschedul/i.test(e.title)&&(x.end??as+1)>=e.pub&&x.start>=x.pub)));
  if(overlaps.length)episodes=episodes.filter(x=>!overlaps.includes(x));
  episodes.push(e);
  }
