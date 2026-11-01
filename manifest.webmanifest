@@ -1,0 +1,25 @@
+{
+  "name": "LAM Plant Status Archive",
+  "short_name": "LAM PLANT",
+  "lang": "ko",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "theme_color": "#0A2647",
+  "background_color": "#f0f2f5",
+  "icons": [
+    {
+      "src": "./assets/lam-plant-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./assets/lam-plant-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
