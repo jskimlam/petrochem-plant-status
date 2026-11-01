@@ -25,18 +25,34 @@ function date(s,ref,start){
 function product(s){s=String(s).toLowerCase();if(/methyl methacrylate|\bmma\b/.test(s))return'MMA';if(/bisphenol|\bbpa\b/.test(s))return'BPA';if(/styrene monomer|\bsm\b/.test(s))return'SM';if(/acrylonitrile|\bacn\b|\ban\b/.test(s)&&!/styrene|\babs\b/.test(s))return'AN';if(/butadiene|\bbd\b/.test(s)&&!/polybutadiene|rubber|styrene/.test(s))return'BD';return null;}
 function field(raw,name){return(raw.match(new RegExp('^'+name+'[^:\\n]*:\\s*([^\\n]+)','im'))||[])[1]||'';}
 function publication(raw,fallback){let m=raw.match(/(\d{1,2})-([A-Za-z]{3})-(\d{2,4})/);if(m)return day(+m[3]<100?2000+ +m[3]:+m[3],months.findIndex(x=>x.startsWith(m[2].toLowerCase())),+m[1]);return date(String(fallback).slice(0,10),day(2026,0,1));}
-function capacity(value){let s=String(value).replace(/,/g,'');if(/^\d+(?:\.\d+)?$/.test(s.trim()))return+s;let matches=[...s.matchAll(/\b(\d{4,7})\b/g)];if(matches.length===1)return+matches[0][1];if(matches.length>1&&/\+/.test(s))return matches.reduce((a,m)=>a+ +m[1],0);return null;}
+function capacity(value,p,title=''){
+ const s=String(value).replace(/,/g,'').trim();
+ if(/^\d+(?:\.\d+)?$/.test(s))return+s;
+ const aliases={SM:'SM|styrene monomer',BD:'BD|butadiene',AN:'AN|ACN|acrylonitrile',BPA:'BPA|bisphenol A',MMA:'MMA|methyl methacrylate'};
+ // Select the requested product, never sum co-products of the same complex.
+ if(p&&aliases[p]){const re=new RegExp('\\b(\\d+(?:\\.\\d+)?)\\s*(million|thousand)?\\s*(?:\\(\\s*)?(?:'+aliases[p]+')\\b','ig');const found=[...s.matchAll(re)];if(found.length===1)return+found[0][1]*(found[0][2]?.toLowerCase()==='million'?1e6:found[0][2]?.toLowerCase()==='thousand'?1e3:1);}
+ const million=s.match(/^(\d+(?:\.\d+)?)\s*million\b/i);if(million)return+million[1]*1e6;
+ const total=s.match(/^(\d{4,7})\s*\(one\s+(\d{4,7}).*?\s+one\s+(\d{4,7})/i);
+ if(total&&+total[1]===+total[2]+ +total[3])return+total[1];
+ const matches=[...s.matchAll(/\b(\d{4,7})\b/g)];if(matches.length===1)return+matches[0][1];
+ // Only combine numbered units when the report explicitly covers plural plants/units.
+ if(matches.length>1&&/\b(?:plants|units|both lines)\b/i.test(title)&&/No\s*1/i.test(s)&&/No\s*2/i.test(s))return matches.reduce((n,m)=>n+ +m[1],0);
+ if(matches.length>1&&/\+/.test(s))return matches.reduce((n,m)=>n+ +m[1],0);
+ return null;
+}
 function build(rows,asOf){const as=date(asOf,day(2026,0,1)), groups=new Map(),review=[],seen=new Set();let count=0;
- rows.forEach((r,index)=>{const p=product(r[3]);if(!p)return;count++;let raw=String(r[10]||''),title=raw.split('\n').find(x=>/plant status/i.test(x))||raw.split('\n')[0],pub=publication(raw,r[0]);const cap=capacity(r[4]);
+ rows.forEach((r,index)=>{const p=product(r[3]);if(!p)return;count++;let raw=String(r[10]||''),title=raw.split('\n').find(x=>/plant status/i.test(x))||raw.split('\n')[0],pub=publication(raw,r[0]);const cap=capacity(r[4],p,title);
  const issue=reason=>review.push({p,company:r[1],title,reason,index});
- if(!cap||!pub){issue('케파 또는 기사일 확인');return;}
- const signature=[p,r[1],cap,title.replace(/\s/g,''),pub].join('|');if(seen.has(signature))return;seen.add(signature);
+ const signature=JSON.stringify([p,String(r[1]).trim().toLowerCase(),String(r[2]).trim().toLowerCase(),r[4],r[6],raw.replace(/\s+/g,' ').trim(),pub]);if(seen.has(signature))return;seen.add(signature);
+ if(!cap){issue('대상 품목·라인별 생산능력 구분 필요');return;}
+ if(!pub){issue('기사 작성일 확인 필요');return;}
  let period=String(r[6]||'').split(/\s*~\s*/),startText=period[0]||field(raw,'Event start'),endText=period[1]||field(raw,'Event (?:finish|end)');
  let start=date(startText,pub),end=date(endText,pub,start);
  if(start==null){issue('가동 변동 시작일 확인');return;}
  if(end==null){const durations=endText.toLowerCase().replace(/\b(a|one|two|three|four|five|six)\b/g,w=>({a:1,one:1,two:2,three:3,four:4,five:5,six:6}[w]));let dur=durations.match(/(\d+)(?:\s*[-–]\s*(\d+))?\s*(days?|weeks?|months?)/i);if(dur)end=start+Math.round((+dur[1]+ +(dur[2]||dur[1]))/2)*(/month/i.test(dur[3])?30:/week/i.test(dur[3])?7:1);}
  const comment=field(raw,'Comments?'),text=title+' '+comment;
- let rates=[...title.matchAll(/(\d{1,3})(?:\s*[-–]\s*(\d{1,3}))?\s*%/g)];if(!rates.length)rates=[...comment.matchAll(/(?:at|to|rate(?:s)?(?:\s+of)?)\s*(?:around\s*|about\s*)?(\d{1,3})(?:\s*[-–]\s*(\d{1,3}))?\s*%/gi)];
+ if(/(?:No\s*\d|line\s*\d)/i.test(comment)&&/total.*(?:three|3).*lines/i.test(String(r[4]))){issue('라인별 생산능력·가동률·적용 기간 구분 필요');return;}
+ let rates=[...title.matchAll(/(\d{1,3})(?:\s*[-–]\s*(\d{1,3}))?\s*%/g)];if(!rates.length)rates=[...comment.matchAll(/(?:at|to|rate(?:s)?(?:\s+of)?|is|are)\s*(?:around\s*|about\s*)?(\d{1,3})(?:\s*[-–]\s*(\d{1,3}))?\s*%/gi)];
  const rate=rates.length?(+rates[0][1]+ +(rates[0][2]||rates[0][1]))/200:null;
  const restart=/restart|resume/i.test(title),full=/full (?:rate|capacity|run)|running at full|100%|back to normal/i.test(title);
  const shut=/shut|offline|turnaround|maintenance|overhaul|keep.*down|pauses|servicing|to maintain/i.test(title);
@@ -45,9 +61,9 @@ function build(rows,asOf){const as=date(asOf,day(2026,0,1)), groups=new Map(),re
  if(!restart&&rate!=null)loss=1-rate;
  if(!restart&&/halves? .*run rate/i.test(title))loss=.5;
  if(shut&&/take turns|in turn|alternat/i.test(comment)&&/two.*lines|two.*units/i.test(comment))loss=.5;
- if(loss==null||loss<0||loss>1){issue('정지 여부 또는 가동률 확인');return;}
- if(restart&&end==null){issue('재가동일 확인');return;}
- if(end!=null&&end<=start){issue('시작·종료일 순서 확인');return;}
+ if(loss==null||loss<0||loss>1){issue(/force majeure|\bFM\b/i.test(text)?'불가항력·공급 중단만으로 실제 정지율을 확정할 수 없음':'실제 가동률 또는 정지 여부 확인 필요');return;}
+ if(restart&&end==null){issue(/postpon|delay/i.test(text)?'재가동 연기: 확정 재가동일 없음':'재가동일이 상대 표현이거나 미정');return;}
+ if(end!=null&&end<=start){issue('월만 기재되어 정지 시작일·기간을 확정할 수 없음');return;}
  const company=String(r[1]).toLowerCase().replace(/petrochemical|petrochemicals|\bpc\b|corporation|corp\.?|co\.?|ltd\.?/g,'').replace(/[^a-z0-9]/g,'');
  const loc=String(r[2]).toLowerCase().split(',')[0].replace(/[^a-z0-9]/g,'');
  // Capacity separates independent lines. Known Hainan naming variants describe the same BD unit.
