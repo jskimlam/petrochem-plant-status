@@ -25,3 +25,29 @@
 #lossPanel .loss-value button:hover{background:#90d8e5}
 #lossPanel .loss-table .loss-subtotal :is(td,th),#lossPanel .loss-table tfoot td,#lossPanel .loss-table tfoot th{background:#e8f1f8;color:#1a5276}
 @media(max-width:600px){#lossPanel .loss-table .lc{min-width:112px;width:112px;max-width:112px}}
+
+/* Allocate the available desktop width across every selected week. */
+#lossPanel{max-width:none}
+#lossPanel .loss-table{width:100%;table-layout:fixed}
+#lossPanel .product-col{width:48px}
+#lossPanel .company-col{width:clamp(115px,11vw,185px)}
+#lossPanel .cap-col{width:56px}
+#lossPanel .loss-table :is(th,td){min-width:0;max-width:none;width:auto;overflow:hidden;padding:3px 1px}
+#lossPanel .loss-table .lc{white-space:normal;overflow-wrap:anywhere;padding-left:4px}
+#lossPanel .loss-table .loss-value{padding:0}
+#lossPanel .loss-value button{width:100%;min-width:0;padding:4px 0;overflow:hidden}
+#lossPanel .long-period{font-size:clamp(8px,.58vw,11px)}
+#lossPanel .long-period thead tr:last-child small{display:none}
+#lossPanel .long-period .loss-value button{font-size:inherit}
+#lossMonthSummary{display:none}
+@media(max-width:1000px){
+  #lossMonthSummary{display:grid;grid-template-columns:repeat(auto-fit,minmax(78px,1fr));gap:3px;margin:6px 0;font-size:11px}
+  #lossMonthSummary span{padding:4px;background:white;border:1px solid #d5dae0;text-align:center}
+  #lossMonthSummary b{display:block}
+  #lossPanel .loss-table{min-width:calc(220px + var(--week-count)*42px)}
+  #lossPanel .long-period{font-size:11px}
+}
+@media(min-width:1001px) and (max-width:1800px){
+  #lossPanel .long-period .loss-value button{color:transparent;display:block;min-height:17px}
+  #lossPanel .long-period :is(.loss-subtotal,tfoot) td{text-overflow:ellipsis}
+}
