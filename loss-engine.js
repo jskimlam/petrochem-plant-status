@@ -24,7 +24,7 @@ function date(s,ref,start){
 }
 const catalog = [
  ['Styrene monomer (SM)','styrene','스타이렌','스타이렌 모노머','스티렌 모노머'],
- ['Acrylonitrile (ACN)','AN','아크릴로니트릴'],
+ ['Acrylonitrile (ACN)','AN','AN (ACN)','ACN (AN)','Acrylonitrile (AN)','아크릴로니트릴'],
  ['Butadiene (BD)','1,3-butadiene','부타디엔'],
  ['Methyl methacrylate (MMA)'], ['Bisphenol A (BPA)'],
  ['Acrylonitrile butadiene styrene (ABS)'], ['Polybutadiene rubber (PBR)'],

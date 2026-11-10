@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<script src="./loss-engine.js?v=product-labels-20261110"></script>
+<script src="./loss-engine.js?v=product-labels-20261110b"></script>
     <meta charset="UTF-8">
     <title>PLANT ARCHIVE | JS KIM</title>
     <link rel="icon" type="image/png" sizes="32x32" href="./assets/lam-plant-32.png">
@@ -423,7 +423,7 @@ some technical issues that occurred earlier in January."></textarea>
             const prods = [...new Set(db.flatMap(row => LossEngine.productLabels(row[3])))].sort();
             const ps = document.getElementById('pSelect');
             ps.innerHTML = '<option value="">품목(Product) 선택</option>';
-            prods.forEach(p => ps.add(new Option(p, p)));
+            prods.forEach(p => ps.add(new Option(p === 'Acrylonitrile (ACN)' ? 'Acrylonitrile (AN / ACN)' : p, p)));
         } catch(e) {
             // 연결 실패 안내
             document.getElementById('displayArea').innerHTML = `
