@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<script src="./loss-engine.js?v=20261102-match2"></script>
+<script src="./loss-engine.js?v=product-labels-20261110"></script>
     <meta charset="UTF-8">
     <title>PLANT ARCHIVE | JS KIM</title>
     <link rel="icon" type="image/png" sizes="32x32" href="./assets/lam-plant-32.png">
@@ -411,14 +411,18 @@ some technical issues that occurred earlier in January."></textarea>
             // 캐시 방지를 위해 타임스탬프 쿼리 파라미터 추가
             const res  = await fetch(GAS_URL + '?t=' + Date.now());
             const data = await res.json();
-            db = data.slice(1);
+            db = data.slice(1).map(row => {
+                const copy = row.slice();
+                copy[3] = LossEngine.productDisplay(row[3]);
+                return copy;
+            });
             lossRender(); // 첫 행(헤더) 제외
 
             // 품목(D열=index 3) 목록 생성
-            const prods = [...new Set(db.map(x => x[3]))].filter(x => x && x !== '-');
+            const prods = [...new Set(db.flatMap(row => LossEngine.productLabels(row[3])))].sort();
             const ps = document.getElementById('pSelect');
             ps.innerHTML = '<option value="">품목(Product) 선택</option>';
-            prods.forEach(p => ps.innerHTML += `<option value="${p}">${p}</option>`);
+            prods.forEach(p => ps.add(new Option(p, p)));
         } catch(e) {
             // 연결 실패 안내
             document.getElementById('displayArea').innerHTML = `
@@ -460,7 +464,7 @@ some technical issues that occurred earlier in January."></textarea>
                 '<div style="text-align:center;padding:55px;color:#ccc;font-size:.9rem">품목을 선택하세요.</div>';
             return;
         }
-        const filtered = db.filter(x => x[3] === p);
+        const filtered = db.filter(x => LossEngine.productLabels(x[3]).includes(p));
         // B열(index 1) = 업체명
         const comps = [...new Set(filtered.map(x => x[1]))].sort();
         comps.forEach(c => cs.innerHTML += `<option value="${c}">${c}</option>`);
@@ -672,7 +676,7 @@ some technical issues that occurred earlier in January."></textarea>
     function renderCards(p, c, r) {
         if (!p) return;
         const rows = db.filter(x =>
-            x[3] === p &&
+            LossEngine.productLabels(x[3]).includes(p) &&
             (!c || x[1] === c) &&
             (!r || x[7] === r)
         ).sort((a, b) => new Date(b[0]) - new Date(a[0])); // 최신순 정렬
@@ -802,7 +806,7 @@ some technical issues that occurred earlier in January."></textarea>
 
         const company  = xf(raw, 'Name', 'Owner', 'Producer');
         const location = xf(raw, 'Location', 'Plant location');
-        const product  = xf(raw, 'Product', 'Commodity', 'Products');
+        const product  = LossEngine.productDisplay(xf(raw, 'Product', 'Commodity', 'Products'));
         const capa     = xf(raw, 'Capacity', 'Capacity (tonnes/year)', 'Capacity (mt/year)');
         const start    = xf(raw, 'Event start', 'Start', 'Start date');
         const finish   = xf(raw, 'Event finish', 'Finish', 'End date', 'Expected restart');
@@ -886,7 +890,7 @@ some technical issues that occurred earlier in January."></textarea>
         // 수정된 input 값 읽기
         const company     = document.getElementById('ed-company').value.trim();
         const location    = document.getElementById('ed-location').value.trim();
-        const product     = document.getElementById('ed-product').value.trim();
+        const product     = LossEngine.productDisplay(document.getElementById('ed-product').value.trim());
         const capa        = document.getElementById('ed-capa').value.trim();
         const status      = document.getElementById('ed-status').value;
         const reason      = document.getElementById('ed-reason').value.trim();
@@ -1041,7 +1045,7 @@ some technical issues that occurred earlier in January."></textarea>
         // 폼에서 최신 값 읽기
         const company     = document.getElementById('edt-company').value.trim();
         const location    = document.getElementById('edt-location').value.trim();
-        const product     = document.getElementById('edt-product').value.trim();
+        const product     = LossEngine.productDisplay(document.getElementById('edt-product').value.trim());
         const capa        = document.getElementById('edt-capa').value.trim();
         const status      = document.getElementById('edt-status').value;
         const reason      = document.getElementById('edt-reason').value.trim();
