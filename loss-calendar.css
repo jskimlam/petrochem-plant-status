@@ -1,0 +1,27 @@
+/* Weekly loss calendar: same compact layout and product colors as test2. */
+#lossPanel{font-family:Arial,sans-serif;color:#1a2a3a;margin:12px auto;padding:0 10px}
+#lossPanel .loss-heading{padding:10px 15px;background:linear-gradient(135deg,#1a5276,#1f618d);color:white;border-radius:9px;flex-wrap:wrap}
+#lossPanel .loss-heading h2{font-size:16px;color:white}#lossPanel .loss-sub{font-size:11px;color:#c5e3f6;margin:2px 0 0}
+#lossPanel .btn-refresh{background:#b43729;color:white;border:0;padding:7px 12px;border-radius:5px;font-size:12px}
+#lossPanel .loss-controls{padding:8px 12px;margin:8px 0;border:1px solid #d5dae0;background:white;border-radius:7px;align-items:center}
+#lossPanel .loss-controls label{display:flex;align-items:center;gap:5px;font-size:11px;color:#52616d}
+#lossPanel select{padding:4px 7px;border-radius:4px}#monthChoices{display:flex;gap:3px;flex-wrap:wrap;align-items:center;font-size:11px}
+#monthChoices button{padding:4px 7px;background:#f8f9fa;color:#4a6078;border:1px solid #ccd0d5;border-radius:4px;font-size:11px;cursor:pointer}
+#monthChoices button[aria-pressed=true]{background:#2980b9;color:white;border-color:#1a6ea0}
+#lossPanel .loss-stats{background:transparent;padding:0;display:flex;flex-wrap:wrap;gap:6px;margin:8px 0;color:#526477}
+.loss-stats span{background:#fff;border:1px solid #d5dae0;padding:4px 10px;font-size:11px;border-radius:5px}
+#lossPanel .loss-scroll{border:1px solid #d5dae0;border-radius:7px;max-height:75vh}
+#lossPanel .loss-table{font-size:11px}#lossPanel .loss-table :is(th,td){min-width:42px;padding:4px;border-color:#dce2e5}
+#lossPanel .loss-table .lc{left:0;min-width:158px;width:158px;max-width:158px}
+#lossPanel .loss-table .lk{position:static;min-width:58px;color:#16674e}
+#lossPanel .loss-table .lp{position:static;min-width:60px;width:60px}
+#lossPanel .loss-table thead tr:first-child th{background:#1a5276;color:white}
+#lossPanel .loss-table thead tr:first-child small{color:#cde7f5}
+#lossPanel .loss-table thead tr:last-child th{background:#f4f6f7}
+#lossPanel .loss-table .week-now{box-shadow:inset 0 0 0 2px #d37b16}
+#lossPanel .product-heading th{text-align:left;color:white;padding:5px 10px}
+#lossPanel .loss-table .loss-value{background:#bde8ef;padding:0}
+#lossPanel .loss-value button{color:#114d60;padding:6px 3px}
+#lossPanel .loss-value button:hover{background:#90d8e5}
+#lossPanel .loss-table .loss-subtotal :is(td,th),#lossPanel .loss-table tfoot td,#lossPanel .loss-table tfoot th{background:#e8f1f8;color:#1a5276}
+@media(max-width:600px){#lossPanel .loss-table .lc{min-width:112px;width:112px;max-width:112px}}
