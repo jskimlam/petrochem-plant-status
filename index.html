@@ -349,7 +349,7 @@ some technical issues that occurred earlier in January."></textarea>
         <div class="row g-2 align-items-center">
             <div class="col-md-4">
                 <select id="pSelect" onchange="updateComp()">
-                    <option value="">품목(Product) 선택</option>
+                    <option value="">전체 품목 조회</option>
                 </select>
             </div>
             <div class="col-md-3">
@@ -377,7 +377,7 @@ some technical issues that occurred earlier in January."></textarea>
         <div class="summary-grid" id="summaryGrid"></div>
     </div>
     <div id="displayArea">
-        <div id="empty-msg">품목과 업체를 선택하면 상세 정보가 나타납니다.</div>
+        <div id="empty-msg">기사 목록을 불러오는 중입니다.</div>
     </div>
 </div>
 
@@ -422,8 +422,13 @@ some technical issues that occurred earlier in January."></textarea>
             // 품목(D열=index 3) 목록 생성
             const prods = [...new Set(db.flatMap(row => LossEngine.productLabels(row[3])))].sort();
             const ps = document.getElementById('pSelect');
-            ps.innerHTML = '<option value="">품목(Product) 선택</option>';
+            const selectedProduct = ps.value;
+            const selectedCompany = document.getElementById('cSelect').value;
+            const selectedReason = document.getElementById('rSelect').value;
+            ps.innerHTML = '<option value="">전체 품목 조회</option>';
             prods.forEach(p => ps.add(new Option(p === 'Acrylonitrile (ACN)' ? 'Acrylonitrile (AN / ACN)' : p, p)));
+            if (prods.includes(selectedProduct)) ps.value = selectedProduct;
+            updateComp(selectedCompany, selectedReason);
         } catch(e) {
             // 연결 실패 안내
             document.getElementById('displayArea').innerHTML = `
@@ -443,14 +448,14 @@ some technical issues that occurred earlier in January."></textarea>
             // 아무것도 그려지지 않았다면 기본 안내 표시
             if (!document.getElementById('displayArea').innerHTML.trim())
                 document.getElementById('displayArea').innerHTML =
-                    '<div id="empty-msg" style="text-align:center;padding:55px;color:#ccc;font-size:.9rem">품목과 업체를 선택하면 상세 정보가 나타납니다.</div>';
+                    '<div id="empty-msg" style="text-align:center;padding:55px;color:#ccc;font-size:.9rem">기사 목록을 불러오는 중입니다.</div>';
         }
     }
 
     // ════════════════════════════════════════════════════
     // ── 업체·사유 드롭다운 갱신 (품목 선택 시)
     // ════════════════════════════════════════════════════
-    function updateComp() {
+    function updateComp(company = '', reason = '') {
         const p  = document.getElementById('pSelect').value;
         const cs = document.getElementById('cSelect');
         const rs = document.getElementById('rSelect');
@@ -458,24 +463,19 @@ some technical issues that occurred earlier in January."></textarea>
         rs.innerHTML = '<option value="">전체 사유 보기</option>';
         document.getElementById('rc').style.display = 'none';
         document.getElementById('summaryBoard').style.display = 'none';
-        if (!p) {
-            cs.disabled = true; rs.disabled = true;
-            document.getElementById('summaryBoard').style.display = 'none';
-            document.getElementById('displayArea').innerHTML =
-                '<div style="text-align:center;padding:55px;color:#ccc;font-size:.9rem">품목을 선택하세요.</div>';
-            return;
-        }
-        const filtered = db.filter(x => LossEngine.productLabels(x[3]).includes(p));
+        const filtered = p ? db.filter(x => LossEngine.productLabels(x[3]).includes(p)) : db;
         // B열(index 1) = 업체명
         const comps = [...new Set(filtered.map(x => x[1]))].sort();
-        comps.forEach(c => cs.innerHTML += `<option value="${c}">${c}</option>`);
+        comps.forEach(c => cs.add(new Option(c, c)));
+        if (comps.includes(company)) cs.value = company;
         cs.disabled = false;
         // H열(index 7) = 사유
         const reasons = [...new Set(filtered.map(x => x[7]).filter(x => x && x !== '-'))].sort();
-        reasons.forEach(r => rs.innerHTML += `<option value="${r}">${r}</option>`);
+        reasons.forEach(r => rs.add(new Option(r, r)));
+        if (reasons.includes(reason)) rs.value = reason;
         rs.disabled = false;
         // 품목 선택만 해도 즉시 전체 카드 표시
-        renderCards(p, '', '');
+        renderCards(p, cs.value, rs.value);
     }
 
     // ── 상태 코드 → CSS 클래스 변환 ──
@@ -675,12 +675,14 @@ some technical issues that occurred earlier in January."></textarea>
     //    각 카드에 ✏️ 수정 버튼 포함
     // ════════════════════════════════════════════════════
     function renderCards(p, c, r) {
-        if (!p) return;
         const rows = db.filter(x =>
-            LossEngine.productLabels(x[3]).includes(p) &&
+            (!p || LossEngine.productLabels(x[3]).includes(p)) &&
             (!c || x[1] === c) &&
             (!r || x[7] === r)
-        ).sort((a, b) => new Date(b[0]) - new Date(a[0])); // 최신순 정렬
+        );
+        // Appended sheet rows are the only available registration-order record.
+        if (p) rows.sort((a, b) => new Date(b[0]) - new Date(a[0]));
+        else rows.reverse();
 
         const area = document.getElementById('displayArea');
         const rcEl = document.getElementById('rc');
@@ -698,12 +700,11 @@ some technical issues that occurred earlier in January."></textarea>
 
         rcEl.style.display = 'block';
         const filterDesc = [c, r].filter(Boolean).join(' / ');
-        rcEl.innerHTML = filterDesc
-            ? `<span>${filterDesc}</span> — 총 <span>${rows.length}건</span>`
-            : `<span>${p}</span> 전체 — 총 <span>${rows.length}건</span> (기사 최신순)`;
+        rcEl.textContent = [p || '전체 품목', filterDesc].filter(Boolean).join(' / ')
+            + ' — 총 ' + rows.length + '건 (' + (p ? '기사 최신순' : '최근 등록순') + ')';
 
         currentRows = rows; // Edit 모달에서 참조
-        renderSummaryBoard(rows, p);
+        renderSummaryBoard(p ? rows : [], p);
         const jumpBackBtn = document.getElementById('jumpBackBtn');
         if (jumpBackBtn) jumpBackBtn.classList.remove('show');
         lastScrollY = null;
@@ -935,18 +936,7 @@ some technical issues that occurred earlier in January."></textarea>
             if (r.success) {
                 toast('✅ 저장 완료! ' + company, 'ok', 4000);
                 closeModal();
-                // 현재 필터 상태 보존하여 재조회
-                const curP = document.getElementById('pSelect').value;
-                const curC = document.getElementById('cSelect').value;
-                const curR = document.getElementById('rSelect').value;
                 await init();
-                if (curP) {
-                    document.getElementById('pSelect').value = curP;
-                    updateComp();
-                    if (curC) document.getElementById('cSelect').value = curC;
-                    if (curR) document.getElementById('rSelect').value = curR;
-                    renderCards(curP, curC, curR);
-                }
             } else {
                 toast('저장 실패: ' + (r.message || '오류'), 'er');
             }
@@ -1079,18 +1069,7 @@ some technical issues that occurred earlier in January."></textarea>
             if (r.success) {
                 toast('✅ 수정 완료! ' + company, 'ok', 4000);
                 closeEditModal();
-                // 현재 필터 상태 보존하여 재조회
-                const curP = document.getElementById('pSelect').value;
-                const curC = document.getElementById('cSelect').value;
-                const curR = document.getElementById('rSelect').value;
                 await init();
-                if (curP) {
-                    document.getElementById('pSelect').value = curP;
-                    updateComp();
-                    if (curC) document.getElementById('cSelect').value = curC;
-                    if (curR) document.getElementById('rSelect').value = curR;
-                    renderCards(curP, curC, curR);
-                }
             } else {
                 toast('수정 실패: ' + (r.message || '오류'), 'er');
             }

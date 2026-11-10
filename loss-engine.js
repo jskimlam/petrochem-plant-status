@@ -23,18 +23,18 @@ function date(s,ref,start){
  return result;
 }
 const catalog = [
- ['Styrene monomer (SM)','styrene','스타이렌','스타이렌 모노머','스티렌 모노머'],
+ ['Styrene monomer (SM)','스티렌','styrene','스타이렌','스타이렌 모노머','스티렌 모노머'],
  ['Acrylonitrile (ACN)','AN','AN (ACN)','ACN (AN)','Acrylonitrile (AN)','아크릴로니트릴'],
  ['Butadiene (BD)','1,3-butadiene','부타디엔'],
- ['Methyl methacrylate (MMA)'], ['Bisphenol A (BPA)'],
- ['Acrylonitrile butadiene styrene (ABS)'], ['Polybutadiene rubber (PBR)'],
- ['Polypropylene (PP)'], ['Polyethylene terephthalate (PET)'],
- ['High density polyethylene (HDPE)'], ['Linear low density polyethylene (LLDPE)'],
- ['Polystyrene (PS)'], ['Propylene oxide (PO)'], ['Monoethylene glycol (MEG)'],
- ['Purified terephthalic acid (PTA)'], ['Polycarbonate (PC)','Polycarbonates (PC)','Polycarbonates'],
- ['Caprolactam','Caprolactam (capro)','capro'], ['Acrylic acid (AA)'], ['1,4-butanediol (BDO)'],
- ['Ethylene','C2','Ethylene (C2)'], ['Propylene','C3','Propylene (C3)'],
- ['Phenol'], ['Acetone'], ['Benzene'], ['Toluene'], ['Mixed xylenes'], ['Acetic acid'], ['Methanol']
+ ['Methyl methacrylate (MMA)','메틸메타크릴레이트'], ['Bisphenol A (BPA)','비스페놀 A'],
+ ['Acrylonitrile butadiene styrene (ABS)','ABS 수지'], ['Polybutadiene rubber (PBR)','폴리부타디엔 고무'],
+ ['Polypropylene (PP)','폴리프로필렌'], ['Polyethylene terephthalate (PET)','폴리에틸렌 테레프탈레이트'],
+ ['High density polyethylene (HDPE)','고밀도 폴리에틸렌'], ['Linear low density polyethylene (LLDPE)','선형 저밀도 폴리에틸렌'],
+ ['Polystyrene (PS)','폴리스티렌'], ['Propylene oxide (PO)','프로필렌옥사이드'], ['Monoethylene glycol (MEG)','모노에틸렌글리콜'],
+ ['Purified terephthalic acid (PTA)','고순도 테레프탈산'], ['Polycarbonate (PC)','폴리카보네이트','Polycarbonates (PC)','Polycarbonates'],
+ ['Caprolactam','카프로락탐','Caprolactam (capro)','capro'], ['Acrylic acid (AA)','아크릴산'], ['1,4-butanediol (BDO)','1,4-부탄디올'],
+ ['Ethylene','에틸렌','C2','Ethylene (C2)'], ['Propylene','프로필렌','C3','Propylene (C3)'],
+ ['Phenol','페놀'], ['Acetone','아세톤'], ['Benzene','벤젠'], ['Toluene','톨루엔'], ['Mixed xylenes','혼합 자일렌'], ['Acetic acid','아세트산'], ['Methanol','메탄올']
 ];
 function labelKey(value) {
  return value.normalize('NFKC').trim().toLowerCase().replace(/[‐‑–—-]/g,' ').replace(/\s+/g,' ')
