@@ -22,7 +22,41 @@ function date(s,ref,start){
  if(start!=null&&result<start&&!/20\d{2}/.test(s))result=day(year+1,mi,d);
  return result;
 }
-function product(s){s=String(s).toLowerCase();if(/methyl methacrylate|\bmma\b/.test(s))return'MMA';if(/bisphenol|\bbpa\b/.test(s))return'BPA';if(/styrene monomer|\bsm\b/.test(s))return'SM';if(/acrylonitrile|\bacn\b|\ban\b/.test(s)&&!/styrene|\babs\b/.test(s))return'AN';if(/butadiene|\bbd\b/.test(s)&&!/polybutadiene|rubber|styrene/.test(s))return'BD';return null;}
+const catalog = [
+ ['Styrene monomer (SM)','스티렌','styrene','스타이렌','스타이렌 모노머','스티렌 모노머'],
+ ['Acrylonitrile (ACN)','AN','AN (ACN)','ACN (AN)','Acrylonitrile (AN)','아크릴로니트릴'],
+ ['Butadiene (BD)','1,3-butadiene','부타디엔'],
+ ['Methyl methacrylate (MMA)','메틸메타크릴레이트'], ['Bisphenol A (BPA)','비스페놀 A'],
+ ['Acrylonitrile butadiene styrene (ABS)','ABS 수지'], ['Polybutadiene rubber (PBR)','폴리부타디엔 고무'],
+ ['Polypropylene (PP)','폴리프로필렌'], ['Polyethylene terephthalate (PET)','폴리에틸렌 테레프탈레이트'],
+ ['High density polyethylene (HDPE)','고밀도 폴리에틸렌'], ['Linear low density polyethylene (LLDPE)','선형 저밀도 폴리에틸렌'],
+ ['Polystyrene (PS)','폴리스티렌'], ['Propylene oxide (PO)','프로필렌옥사이드'], ['Monoethylene glycol (MEG)','모노에틸렌글리콜'],
+ ['Purified terephthalic acid (PTA)','고순도 테레프탈산'], ['Polycarbonate (PC)','폴리카보네이트','Polycarbonates (PC)','Polycarbonates'],
+ ['Caprolactam','카프로락탐','Caprolactam (capro)','capro'], ['Acrylic acid (AA)','아크릴산'], ['1,4-butanediol (BDO)','1,4-부탄디올'],
+ ['Ethylene','에틸렌','C2','Ethylene (C2)'], ['Propylene','프로필렌','C3','Propylene (C3)'],
+ ['Phenol','페놀'], ['Acetone','아세톤'], ['Benzene','벤젠'], ['Toluene','톨루엔'], ['Mixed xylenes','혼합 자일렌'], ['Acetic acid','아세트산'], ['Methanol','메탄올']
+];
+function labelKey(value) {
+ return value.normalize('NFKC').trim().toLowerCase().replace(/[‐‑–—-]/g,' ').replace(/\s+/g,' ')
+  .replace(/\s*\(\s*/g,'(').replace(/\s*\)/g,')');
+}
+const names = new Map();
+for(const [label,...synonyms] of catalog){
+ const m=label.match(/^(.*?)\s*\(([^)]+)\)$/);
+ for(const name of [label,...synonyms,...(m?[m[1],m[2]]:[])]) names.set(labelKey(name),label);
+}
+function productLabels(value){
+ const input=String(value??'').normalize('NFKC').trim();
+ if(!input || input==='-')return [];
+ const fields=input.split(/[,](?!\d)|[;/]|\s+and\s+|\s+&\s+/i);
+ return [...new Set(fields.map(x=>x.trim()).filter(Boolean).map(x=>names.get(labelKey(x))||x))];
+}
+function productDisplay(value){return productLabels(value).join('; ') || String(value??'').trim();}
+
+function product(s){
+ const codes=productLabels(s).map(label=>label.match(/\(([^)]+)\)$/)?.[1]).map(code=>code==='ACN'?'AN':code);
+ return products.find(p=>codes.includes(p)) || null;
+}
 function field(raw,name){return(raw.match(new RegExp('^'+name+'[^:\\n]*:\\s*([^\\n]+)','im'))||[])[1]||'';}
 function publication(raw,fallback){let m=raw.match(/(\d{1,2})-([A-Za-z]{3})-(\d{2,4})/);if(m)return day(+m[3]<100?2000+ +m[3]:+m[3],months.findIndex(x=>x.startsWith(m[2].toLowerCase())),+m[1]);return date(String(fallback).slice(0,10),day(2026,0,1));}
 function capacity(value,p,title=''){
@@ -93,5 +127,5 @@ function cell(g,start,end,asOf){let total=0,used=new Map();for(let d=start;d<end
  const y=new Date(d*DAY).getUTCFullYear(),n=annualLoss(g.cap,e.loss,d,d+1);total+=n;
  if(!used.has(e.index))used.set(e.index,{event:e,days:0,tons:0});used.get(e.index).days++;used.get(e.index).tons+=n;
  }return{total,evidence:[...used.values()]};}
- const api={build,cell,date,day,iso,products,capacity,annualLoss};if(typeof module!=='undefined')module.exports=api;root.LossEngine=api;
+ const api={productLabels,productDisplay,build,cell,date,day,iso,products,capacity,annualLoss};if(typeof module!=='undefined')module.exports=api;root.LossEngine=api;
 })(typeof window!=='undefined'?window:globalThis);
